@@ -10,8 +10,8 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/favicon.png",
-      "sizes": "64x64",
+      "src": "/favicon/1.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }

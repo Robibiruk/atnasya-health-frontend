@@ -19,7 +19,7 @@ build/
 Thumbs.db
 
 # Claude
-.claude/
+.claude/skills/ui-ux-pro-max/
 
 # Logs
 *.log

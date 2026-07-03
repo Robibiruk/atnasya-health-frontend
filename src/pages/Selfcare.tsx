@@ -50,6 +50,7 @@ import type {
   MonthlyWellnessProgress,
   CyclePhase,
 } from "../types";
+import { playAlarm } from "../utils/audio";
 
 // ========== HELPERS ==========
 function selfcareCardToInsightCard(card: SelfcareCard): InsightCard {
@@ -743,15 +744,49 @@ function ReminderScheduler({ reminders, onAdd, onToggle, onRemove, onRename, onU
             </div>
           </div>
 
-          {/* Row 2: time picker */}
-          <div className="flex items-center gap-3">
-            <label className="text-[11px] font-medium text-muted w-8">Time</label>
-            <input
-              type="time"
-              value={r.time}
-              onChange={(e) => onUpdate(r.id, { time: e.target.value })}
-              className="rounded border border-border bg-card px-2 py-1 text-[13px] text-text outline-none focus:border-primary"
-            />
+          {/* Row 2: alarm + times */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-muted">Times</span>
+              {r.times.map((t, idx) => (
+                <input
+                  key={idx}
+                  type="time"
+                  value={t}
+                  onChange={(e) => {
+                    const next = [...r.times];
+                    next[idx] = e.target.value;
+                    onUpdate(r.id, { times: next });
+                  }}
+                  className="rounded border border-border bg-card px-2 py-1 text-[13px] text-text outline-none focus:border-primary"
+                />
+              ))}
+              <button
+                type="button"
+                onClick={() => onUpdate(r.id, { times: [...r.times, "12:00"] })}
+                className="text-[12px] font-bold text-primary cursor-pointer"
+              >+</button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onUpdate(r.id, { alarmEnabled: !r.alarmEnabled, alarmSound: r.alarmSound === "none" ? "chime" : r.alarmSound })}
+                className={`text-[12px] font-semibold cursor-pointer ${r.alarmEnabled ? "text-primary" : "text-muted"}`}
+                title="Alarm toggle"
+              >🔔{r.alarmEnabled ? " on" : " off"}</button>
+              {r.alarmEnabled && (
+                <select
+                  value={r.alarmSound}
+                  onChange={(e) => onUpdate(r.id, { alarmSound: e.target.value as SelfCareReminder["alarmSound"] })}
+                  className="rounded border border-border bg-card px-2 py-1 text-[13px] text-text outline-none focus:border-primary"
+                >
+                  <option value="none">None</option>
+                  <option value="chime">Chime</option>
+                  <option value="beep">Beep</option>
+                  <option value="soft">Soft</option>
+                </select>
+              )}
+            </div>
           </div>
 
           {/* Row 3: day toggles */}
@@ -1202,11 +1237,19 @@ export function Selfcare() {
   const [reminders, setReminders] = useState<SelfCareReminder[]>(() => {
     try {
       const saved = localStorage.getItem("atnasya-reminders");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map((r: any) => ({
+          ...r,
+          times: Array.isArray(r.times) && r.times.length > 0 ? r.times : r.time ? [r.time] : ["12:00"],
+          alarmEnabled: typeof r.alarmEnabled === "boolean" ? r.alarmEnabled : false,
+          alarmSound: ["chime", "beep", "soft", "none"].includes(r.alarmSound) ? r.alarmSound : "none",
+        }));
+      }
     } catch { /* ignore */ }
     return [
-      { id: "r1", type: "hydration", title: "Drink water", time: "09:00", emoji: "💧", days: [0,1,2,3,4,5,6], enabled: true },
-      { id: "r2", type: "stretch", title: "Stretch break", time: "14:00", emoji: "🤸", days: [0,1,2,3,4,5], enabled: false },
+      { id: "r1", type: "hydration", title: "Drink water", times: ["09:00"], emoji: "💧", days: [0,1,2,3,4,5,6], enabled: true, alarmEnabled: false, alarmSound: "none" },
+      { id: "r2", type: "stretch", title: "Stretch break", times: ["14:00"], emoji: "🤸", days: [0,1,2,3,4,5], enabled: false, alarmEnabled: false, alarmSound: "none" },
     ];
   });
   const [videoPhaseFilter, setVideoPhaseFilter] = useState<string>("all");
@@ -1265,10 +1308,12 @@ export function Selfcare() {
       id: `r${Date.now()}`,
       type: "custom",
       title: "New reminder",
-      time: "12:00",
+      times: ["12:00"],
       emoji: "🔔",
       days: [0,1,2,3,4,5,6],
       enabled: true,
+      alarmEnabled: false,
+      alarmSound: "none",
     };
     setReminders((prev) => [...prev, newReminder]);
     showToast("Reminder added");
@@ -1339,13 +1384,18 @@ export function Selfcare() {
 
       // 1. Custom reminders
       for (const r of reminders) {
-        if (!r.enabled || !r.days.includes(today) || r.time !== currentMin) continue;
+        if (!r.enabled || !r.days.includes(today) || !r.times.includes(currentMin)) continue;
         if (Notification.permission === "granted") {
           new Notification("Atnasya Reminder", {
             body: r.emoji + " " + r.title,
             icon: "/icons/icon.svg",
             tag: r.id,
           });
+        }
+        if (r.alarmEnabled) {
+          try {
+            playAlarm(r.alarmSound);
+          } catch { /* ignore audio errors */ }
         }
       }
 

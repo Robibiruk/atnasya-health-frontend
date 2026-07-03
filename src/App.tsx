@@ -258,15 +258,22 @@ export default function App() {
   const favicon = useAuthStore((s) => s.favicon);
 
   useEffect(() => {
-    const link =
+    const next = favicon ? `/favicon/${favicon}.png` : "/favicon/1.png";
+
+    const faviconLink =
       typeof document !== "undefined"
         ? document.querySelector<HTMLLinkElement>('head link[rel="icon"][type="image/png"]')
         : null;
-    if (link) {
-      const next = favicon ? `/favicon/${favicon}.png` : "/favicon/1.png";
-      if (link.getAttribute("href") !== next) {
-        link.setAttribute("href", next);
-      }
+    const appleLink =
+      typeof document !== "undefined"
+        ? document.querySelector<HTMLLinkElement>('head link[rel="apple-touch-icon"]')
+        : null;
+
+    if (faviconLink && faviconLink.getAttribute("href") !== next) {
+      faviconLink.setAttribute("href", next);
+    }
+    if (appleLink && appleLink.getAttribute("href") !== next) {
+      appleLink.setAttribute("href", next);
     }
   }, [favicon]);
 

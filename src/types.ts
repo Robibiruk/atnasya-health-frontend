@@ -302,11 +302,13 @@ export interface SelfCareReminder {
   id: string;
   type: "hydration" | "medication" | "stretch" | "rest" | "custom";
   title: string;
-  time: string;
+  times: string[];
   emoji: string;
   days: number[];
   enabled: boolean;
   phaseSpecific?: CyclePhase;
+  alarmEnabled: boolean;
+  alarmSound: "chime" | "beep" | "soft" | "none";
 }
 
 export interface TrimesterChecklistItem {
