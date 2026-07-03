@@ -189,3 +189,9 @@ MIT — free forever, no ads, no tracking.
 ---
 
 > Built with care for calmer days and steadier routines.
+
+---
+
+## 💖 Dedication
+
+This project is dedicated to **Atnasya** ❤️
