@@ -3,6 +3,7 @@
 > A calm, ad-free companion for cycle-aware wellbeing — meditation, yoga, sleep, mood, journaling, and phase-based self-care in one place.
 
 [Live Demo](#) • [Report Bug](#) • [Request Feature](#)
+![Atnasya App Preview]([https://ibb.co/wFyJHQCJ0](https://i.ibb.co/nNr321f3/photo-2026-07-03-23-32-50.jpg))
 
 ![React](https://img.shields.io/badge/React-20232A?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-blue?logo=typescript)
