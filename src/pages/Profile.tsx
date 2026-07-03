@@ -1,6 +1,6 @@
 // Profile — avatar, stats grid, partner connect, settings, preferences, privacy, export, FAQ, feedback.
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { TopBar } from "../components/layout/TopBar";
 import { Card } from "../components/ui/Card";
@@ -14,7 +14,68 @@ import { useEffect } from "react";
 import { QuickStats } from "../components/cycle/QuickStats";
 import { usePartner } from "../hooks/usePartner";
 import { InviteCodeDisplay } from "../components/partner/InviteCodeDisplay";
-import type { TrackingMode, AppLanguage, FAQItem } from "../types";
+import { ThemePalettePicker } from "../components/ui/ThemePalettePicker";
+import { PetSelector } from "../components/ui/PetIconDisplay";
+import { FaviconPicker } from "../components/ui/FaviconPicker";
+import { PetPickerModal } from "../components/ui/PetPickerModal";
+import type { PetIcon, TrackingMode, AppLanguage, FAQItem } from "../types";
+
+// Make pet avatar in Profile use the shared modal and close automatically after selection.
+function PetAvatar() {
+  const pet = useAuthStore((s) => s.pet);
+  const setPet = useAuthStore((s) => s.setPet);
+  const [open, setOpen] = useState(false);
+  const prefix = pet.replace(/[0-9]/g, "");
+  const folder = prefix === "cat" ? "cat" : prefix === "puppy" ? "puppy" : "animals";
+  const petNum = pet.replace(/\D/g, "");
+  const imgSrc = pet === "none" ? "" : `/pets/${folder}/${petNum}.png`;
+  const fallbackEmoji = pet === "none" ? "+" : pet.startsWith("cat") ? "🐱" : pet.startsWith("puppy") ? "🐶" : "🐾";
+  const petLabel = pet === "none" ? "Add pet" : prefix;
+
+  const pick = (value: PetIcon) => {
+    setPet(value);
+    setOpen(false);
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-primary-light text-white text-[22px] font-bold flex-shrink-0 overflow-hidden cursor-pointer"
+        title={petLabel}
+      >
+        {pet === "none" ? (
+          <span className="text-[26px] opacity-90">{fallbackEmoji}</span>
+        ) : (
+          <img
+            src={imgSrc}
+            alt="pet"
+            className="h-full w-full object-contain"
+            onError={(e) => {
+              const el = e.currentTarget;
+              el.style.display = "none";
+              if (!el.nextElementSibling) {
+                const s = document.createElement("span");
+                s.textContent = fallbackEmoji;
+                s.className = "text-[26px] text-white font-bold";
+                el.parentNode?.insertBefore(s, el.nextSibling);
+              }
+            }}
+          />
+        )}
+      </button>
+      <PetPickerModal
+        open={open}
+        onClose={() => setOpen(false)}
+        current={pet as PetIcon}
+        onChange={pick}
+      />
+    </>
+  );
+}
+
+// Reuse existing PetSelector for below-avatar “change” row.
 
 // ========== FAQ DATA ==========
 const FAQ_ITEMS: FAQItem[] = [
@@ -50,7 +111,7 @@ export function Profile() {
   const [inviteCode, setInviteCode] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Extended settings
   const [trackingMode, setTrackingMode] = useState<TrackingMode>("cycle");
   const [appLanguage, setAppLanguage] = useState<AppLanguage>("en");
@@ -202,13 +263,11 @@ export function Profile() {
       <div className="space-y-5 px-5 pt-3">
         {/* Avatar + name */}
         <div className="flex items-center gap-4">
-          <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-primary-light text-white text-[22px] font-bold flex-shrink-0">
-            {initials}
-          </div>
+          <PetAvatar />
           <div className="min-w-0">
             <h2 className="text-[20px] font-bold text-text truncate">{displayName}</h2>
             <p className="text-[13px] text-muted">
-              {onboardingCompleted ? `Tracking: ${trackingMode}` : "Complete onboarding to start tracking"}
+              {onboardingCompleted ? `${t("profile.tracking.mode")}: ${t("profile.tracking." + trackingMode)}` : t("profile.onboarding.prompt")}
             </p>
             {profile?.birthYear && <p className="text-[12px] text-muted">Born {profile.birthYear}</p>}
           </div>
@@ -223,12 +282,12 @@ export function Profile() {
             <div className="flex items-center gap-2">
               <span className="text-[18px]">{TRACKING_MODES.find((m) => m.mode === trackingMode)?.emoji}</span>
               <div>
-                <p className="text-[14px] font-semibold text-text">Tracking mode</p>
-                <p className="text-[12px] text-muted">{TRACKING_MODES.find((m) => m.mode === trackingMode)?.desc}</p>
+                <p className="text-[14px] font-semibold text-text">{t("profile.tracking.mode")}</p>
+                <p className="text-[12px] text-muted">{t("profile.tracking." + trackingMode)}</p>
               </div>
             </div>
             <button type="button" onClick={() => setShowTrackingModePicker(!showTrackingModePicker)} className="text-[12px] text-primary cursor-pointer font-semibold">
-              Change
+              {t("profile.change")}
             </button>
           </div>
           {showTrackingModePicker && (
@@ -263,7 +322,7 @@ export function Profile() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
-            <h3 className="text-[16px] font-bold text-text">Partner</h3>
+            <h3 className="text-[16px] font-bold text-text">{t("partner.title")}</h3>
           </div>
 
           {(!connection || connection.status === "none") && (
@@ -275,15 +334,15 @@ export function Profile() {
                 </div>
               </div>
               <div className="text-center space-y-2">
-                <h4 className="text-[16px] font-bold text-text">Connect your partner</h4>
-                <p className="text-[13px] text-muted max-w-[240px] mx-auto">Share your cycle phase and wellness summary.</p>
+                <h4 className="text-[16px] font-bold text-text">{t("partner.connect.title")}</h4>
+                <p className="text-[13px] text-muted max-w-[240px] mx-auto">{t("partner.connect.desc")}</p>
               </div>
               <button type="button" onClick={handleCreateInvite} disabled={partnerLoading}
                 className="w-full rounded-btn bg-primary px-5 py-3 text-[15px] font-semibold text-white cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-50">
-                {partnerLoading ? "Creating..." : "Send an invite"}
+                {partnerLoading ? t("creating") : t("partner.invite.send")}
               </button>
               <div className="border-t border-border pt-4 space-y-3">
-                <p className="text-[15px] font-semibold text-text">Have an invite code?</p>
+                <p className="text-[15px] font-semibold text-text">{t("partner.invite.have")}</p>
                 <div className="flex gap-1.5 justify-center">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <input key={i} type="text" maxLength={1} value={inviteCode[i] ?? ""}
@@ -307,7 +366,7 @@ export function Profile() {
                 {codeError && <p className="text-center text-[12px] text-danger">{codeError}</p>}
                 <button type="button" onClick={handleAcceptCode} disabled={inviteCode.length !== 6 || partnerLoading}
                   className="w-full rounded-btn border-2 border-primary px-5 py-3 text-[15px] font-semibold text-primary cursor-pointer transition-opacity hover:opacity-80 disabled:opacity-40">
-                  {partnerLoading ? "Connecting..." : "Connect"}
+                  {partnerLoading ? t("connecting") : t("partner.connect.action")}
                 </button>
               </div>
             </div>
@@ -318,22 +377,22 @@ export function Profile() {
               style={{ background: "var(--color-card)", boxShadow: "var(--shadow-card)", border: "2px solid transparent", backgroundImage: "linear-gradient(var(--color-card), var(--color-card)), linear-gradient(135deg, var(--color-primary), var(--color-accent))", backgroundOrigin: "border-box", backgroundClip: "padding-box, border-box" }}
             >
               <div className="flex justify-center">
-                <span className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold" style={{ backgroundColor: "rgba(245,158,11,0.15)", color: "#F59E0B" }}>Waiting for partner</span>
+                <span className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold" style={{ backgroundColor: "rgba(245,158,11,0.15)", color: "#F59E0B" }}>{t("partner.waiting")}</span>
               </div>
               <InviteCodeDisplay code={connection.inviteCode ?? ""} />
               <div className="flex gap-2">
                 <button type="button" onClick={handleCopyCode} className="flex-1 flex items-center justify-center gap-2 rounded-btn border border-border px-4 py-2.5 text-[13px] font-semibold text-text cursor-pointer hover:bg-card-hover">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                  {copied ? "Copied! ✓" : "Copy code"}
+                  {copied ? t("copied") : t("partner.copy")}
                 </button>
-                <button type="button" onClick={() => setShowPartnerConfirm(true)} className="w-full text-center text-[12px] text-danger font-medium cursor-pointer hover:underline">Revoke invite</button>
+                <button type="button" onClick={() => setShowPartnerConfirm(true)} className="w-full text-center text-[12px] text-danger font-medium cursor-pointer hover:underline">{t("partner.revoke")}</button>
               </div>
               {showPartnerConfirm && (
                 <div className="rounded-btn border border-danger/30 p-4 space-y-3">
-                  <p className="text-[13px] text-text">Remove this invite?</p>
+                  <p className="text-[13px] text-text">{t("partner.revoke.confirm")}</p>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => setShowPartnerConfirm(false)} className="flex-1 rounded-btn border border-border px-4 py-2.5 text-[13px] font-semibold text-text cursor-pointer">Cancel</button>
-                    <button type="button" onClick={handleRevoke} className="flex-1 rounded-btn bg-danger px-4 py-2.5 text-[13px] font-semibold text-white cursor-pointer">Remove</button>
+                    <button type="button" onClick={() => setShowPartnerConfirm(false)} className="flex-1 rounded-btn border border-border px-4 py-2.5 text-[13px] font-semibold text-text cursor-pointer">{t("cancel")}</button>
+                    <button type="button" onClick={handleRevoke} className="flex-1 rounded-btn bg-danger px-4 py-2.5 text-[13px] font-semibold text-white cursor-pointer">{t("delete")}</button>
                   </div>
                 </div>
               )}
@@ -347,8 +406,8 @@ export function Profile() {
                   {connection.partnerName?.charAt(0)?.toUpperCase() ?? "?"}
                 </div>
                 <div>
-                  <p className="text-[15px] font-semibold text-text">{connection.partnerName ?? "Partner"}</p>
-                  <span className="text-[11px] font-medium text-success">Connected</span>
+                  <p className="text-[15px] font-semibold text-text">{connection.partnerName ?? t("partner.title")}</p>
+                  <span className="text-[11px] font-medium text-success">{t("partner.connected")}</span>
                 </div>
               </div>
               <div className="space-y-4">
@@ -356,35 +415,35 @@ export function Profile() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-[16px]">🌸</span>
-                    <span className="text-[14px] text-text">Cycle phase & countdown</span>
+                    <span className="text-[14px] text-text">{t("partner.sharing.phase")}</span>
                   </div>
-                  <span className="text-[11px] text-muted">Always on</span>
+                  <span className="text-[11px] text-muted">{t("partner.always.on")}</span>
                 </div>
                 {/* Mood toggle */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-[16px]">😊</span>
-                    <div><span className="text-[14px] text-text">Mood summary</span><p className="text-[10px] text-muted">Emoji + score only</p></div>
+                    <div><span className="text-[14px] text-text">{t("partner.sharing.mood")}</span><p className="text-[10px] text-muted">{t("partner.sharing.mood.desc")}</p></div>
                   </div>
-                  <button type="button" onClick={handleToggleMood} aria-label="Toggle mood sharing" className={`toggle-track ${connection.shareMood ? "active" : ""}`}><div className="toggle-thumb" /></button>
+                  <button type="button" onClick={handleToggleMood} aria-label={t("partner.sharing.mood")} className={`toggle-track ${connection.shareMood ? "active" : ""}`}><div className="toggle-thumb" /></button>
                 </div>
                 {/* Share symptoms toggle */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-[16px]">🌿</span>
-                    <div><span className="text-[14px] text-text">Symptoms</span><p className="text-[10px] text-muted">Shared symptoms & pain levels</p></div>
+                    <div><span className="text-[14px] text-text">{t("partner.sharing.symptoms")}</span><p className="text-[10px] text-muted">{t("partner.sharing.symptoms.desc")}</p></div>
                   </div>
-                  <button type="button" onClick={handleToggleSymptoms} aria-label="Toggle symptom sharing" className={`toggle-track ${connection.shareSymptoms ? "active" : ""}`}><div className="toggle-thumb" /></button>
+                  <button type="button" onClick={handleToggleSymptoms} aria-label={t("partner.sharing.symptoms")} className={`toggle-track ${connection.shareSymptoms ? "active" : ""}`}><div className="toggle-thumb" /></button>
                 </div>
                 {/* Pregnancy sharing toggle */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-[16px]">🤰</span>
-                    <div><span className="text-[14px] text-text">Pregnancy sharing</span><p className="text-[10px] text-muted">Week, milestones, appointments</p></div>
+                    <div><span className="text-[14px] text-text">{t("partner.sharing.pregnancy")}</span><p className="text-[10px] text-muted">{t("partner.sharing.pregnancy.desc")}</p></div>
                   </div>
-                  <button type="button" onClick={handleTogglePregnancy} aria-label="Toggle pregnancy sharing" className={`toggle-track ${connection.sharePregnancy ? "active" : ""}`}><div className="toggle-thumb" /></button>
+                  <button type="button" onClick={handleTogglePregnancy} aria-label={t("partner.sharing.pregnancy")} className={`toggle-track ${connection.sharePregnancy ? "active" : ""}`}><div className="toggle-thumb" /></button>
                 </div>
-                {/* Pause sharing — new */}
+                {/* Pause sharing */}
                 <div className="border-t border-border pt-3">
                   <button type="button" onClick={() => {
                     if (confirm("Pause sharing? Your partner won't see any updates until you resume.")) {
@@ -392,19 +451,19 @@ export function Profile() {
                     }
                   }}
                     className="w-full rounded-btn border border-border px-4 py-2.5 text-[13px] font-semibold text-muted cursor-pointer hover:bg-card-hover transition-colors">
-                    ⏸ Pause sharing
+                    ⏸ {t("partner.sharing.pause")}
                   </button>
                 </div>
               </div>
               <button type="button" onClick={() => setShowPartnerConfirm(true)} className="w-full text-center text-[12px] text-danger font-medium cursor-pointer hover:underline">
-                Remove partner
+                {t("partner.remove")}
               </button>
               {showPartnerConfirm && (
                 <div className="rounded-btn border border-danger/30 p-4 space-y-3">
-                  <p className="text-[13px] text-text">Disconnect partner?</p>
+                  <p className="text-[13px] text-text">{t("partner.remove.confirm")}</p>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => setShowPartnerConfirm(false)} className="flex-1 rounded-btn border border-border text-[13px] font-semibold">Cancel</button>
-                    <button type="button" onClick={handleRevoke} className="flex-1 rounded-btn bg-danger text-white text-[13px] font-semibold">Disconnect</button>
+                    <button type="button" onClick={() => setShowPartnerConfirm(false)} className="flex-1 rounded-btn border border-border text-[13px] font-semibold">{t("cancel")}</button>
+                    <button type="button" onClick={handleRevoke} className="flex-1 rounded-btn bg-danger text-white text-[13px] font-semibold">{t("disconnect")}</button>
                   </div>
                 </div>
               )}
@@ -416,34 +475,34 @@ export function Profile() {
         <Card className="p-0 overflow-hidden">
           {/* Notifications */}
           <button type="button" onClick={async () => {
-            if (!("Notification" in window)) { showToast("Notifications not supported"); return; }
+            if (!("Notification" in window)) { showToast(t("notif.unsupported")); return; }
             if (Notification.permission === "granted") {
               await updateSetting("notifications", !profile?.settings?.notifications);
             } else if (Notification.permission === "denied") {
-              showToast("Please enable notifications in browser settings");
+              showToast(t("notif.denied"));
             } else {
               const perm = await Notification.requestPermission();
               if (perm === "granted") {
                 await updateSetting("notifications", true);
-                showToast("Notifications enabled ✓");
+                showToast(t("notif.enabled"));
               } else {
-                showToast("Notification permission denied");
+                showToast(t("notif.disabled"));
               }
             }
           }}
             className="flex w-full items-center justify-between h-[52px] px-4 cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
-              <span className="text-[15px] text-text">Notifications</span>
+              <span className="text-[15px] text-text">{t("notifications")}</span>
             </div>
             <div className={`toggle-track ${profile?.settings?.notifications ? "active" : ""}`}><div className="toggle-thumb" /></div>
           </button>
           {/* Reminders */}
-          <button type="button" onClick={() => showToast("Reminder settings coming soon")}
+          <button type="button" onClick={() => showToast(t("reminder.coming.soon"))}
             className="flex w-full items-center justify-between h-[52px] px-4 border-t border-border cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <span className="text-[15px] text-text">Reminder settings</span>
+              <span className="text-[15px] text-text">{t("reminder.settings")}</span>
             </div>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-muted)" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
           </button>
@@ -455,7 +514,7 @@ export function Profile() {
             className="flex w-full items-center justify-between h-[52px] px-4 border-t border-border cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-              <span className="text-[15px] text-text">Units</span>
+              <span className="text-[15px] text-text">{t("units")}</span>
             </div>
             <span className="text-[12px] text-muted">{profile?.settings?.unit ?? "metric"}</span>
           </button>
@@ -464,7 +523,7 @@ export function Profile() {
             className="flex w-full items-center justify-between h-[52px] px-4 border-t border-border cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-              <span className="text-[15px] text-text">Language</span>
+              <span className="text-[15px] text-text">{t("language")}</span>
             </div>
             <span className="text-[12px] text-muted">{LANGUAGES.find((l) => l.code === i18n.language)?.native ?? "English"}</span>
           </button>
@@ -482,39 +541,51 @@ export function Profile() {
           <div className="flex items-center justify-between h-[52px] px-4 border-t border-border">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-              <span className="text-[15px] text-text">Dark mode</span>
+              <span className="text-[15px] text-text">{t("dark.mode")}</span>
             </div>
-            <button type="button" onClick={toggleTheme} aria-label="Toggle dark mode" className={`toggle-track ${theme === "dark" ? "active" : ""}`}><div className="toggle-thumb" /></button>
+            <button type="button" onClick={toggleTheme} aria-label={t("dark.mode")} className={`toggle-track ${theme === "dark" ? "active" : ""}`}><div className="toggle-thumb" /></button>
           </div>
           {/* Anonymous mode */}
           <div className="flex items-center justify-between h-[52px] px-4 border-t border-border">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-              <span className="text-[15px] text-text">Anonymous mode</span>
+              <span className="text-[15px] text-text">{t("anonymous.mode")}</span>
             </div>
-            <button type="button" onClick={toggleAnonymousMode} aria-label="Toggle anonymous mode" className={`toggle-track ${anonymousMode ? "active" : ""}`}><div className="toggle-thumb" /></button>
+            <button type="button" onClick={toggleAnonymousMode} aria-label={t("anonymous.mode")} className={`toggle-track ${anonymousMode ? "active" : ""}`}><div className="toggle-thumb" /></button>
+          </div>
+          {/* Color palette */}
+          <div className="px-4 py-3 border-t border-border">
+            <ThemePalettePicker />
+          </div>
+          {/* Pet avatar */}
+          <div className="px-4 py-3 border-t border-border">
+            <PetSelector />
+          </div>
+          {/* App icon */}
+          <div className="px-4 py-3 border-t border-border">
+            <FaviconPicker />
           </div>
         </Card>
 
         {/* PRIVACY & SECURITY CARD */}
         <Card className="p-0 overflow-hidden">
           <div className="px-4 h-[44px] flex items-center border-b border-border">
-            <span className="text-[14px] font-semibold text-text">Privacy & security</span>
+            <span className="text-[14px] font-semibold text-text">{t("privacy.security")}</span>
           </div>
           {/* Data encryption */}
           <div className="flex items-center justify-between h-[52px] px-4 border-t border-border cursor-pointer hover:bg-card-hover" onClick={() => { setDataEncryption(!dataEncryption); updateSetting("dataEncryption", !dataEncryption); }}>
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              <span className="text-[15px] text-text">Data encryption</span>
+              <span className="text-[15px] text-text">{t("data.encryption")}</span>
             </div>
             <div className={`toggle-track ${dataEncryption ? "active" : ""}`}><div className="toggle-thumb" /></div>
           </div>
           {/* Delete account */}
-          <button type="button" onClick={() => showToast("Delete account coming soon")}
+          <button type="button" onClick={() => showToast(t("reminder.coming.soon"))}
             className="flex w-full items-center justify-between h-[52px] px-4 border-t border-border cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" strokeWidth="2" className="text-muted"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              <span className="text-[15px] text-danger">Delete account</span>
+              <span className="text-[15px] text-danger">{t("delete.account")}</span>
             </div>
           </button>
         </Card>
@@ -525,14 +596,14 @@ export function Profile() {
             className="flex w-full items-center justify-between h-[52px] px-4 cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-              <span className="text-[15px] text-text">Export cycle data (CSV)</span>
+              <span className="text-[15px] text-text">{t("data.export")}</span>
             </div>
           </button>
-          <button type="button" onClick={() => showToast("PDF export coming soon")}
+          <button type="button" onClick={() => showToast(t("export.coming.soon"))}
             className="flex w-full items-center justify-between h-[52px] px-4 border-t border-border cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <span className="text-[15px] text-text">Export self-care report (PDF)</span>
+              <span className="text-[15px] text-text">{t("data.export.pdf")}</span>
             </div>
           </button>
         </Card>
@@ -544,7 +615,7 @@ export function Profile() {
             className="flex w-full items-center justify-between h-[52px] px-4 cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span className="text-[15px] text-text">Help & FAQ</span>
+              <span className="text-[15px] text-text">{t("help.faq")}</span>
             </div>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-muted)" strokeWidth="2"><path d={showFAQ ? "M18 15l-6-6-6 6" : "M9 18l6-6-6-6"}/></svg>
           </button>
@@ -572,7 +643,7 @@ export function Profile() {
             className="flex w-full items-center justify-between h-[52px] px-4 border-t border-border cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-              <span className="text-[15px] text-text">Send feedback</span>
+              <span className="text-[15px] text-text">{t("send.feedback")}</span>
             </div>
           </button>
           {showFeedback && (
@@ -581,17 +652,17 @@ export function Profile() {
                 rows={3} className="w-full rounded-btn border border-border bg-card px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
               <button type="button" onClick={handleSubmitFeedback} disabled={!feedbackText.trim() || submittingFeedback}
                 className="w-full rounded-btn bg-primary text-white py-2.5 text-[13px] font-semibold cursor-pointer disabled:opacity-50">
-                {submittingFeedback ? "Sending..." : "Submit"}
+                {submittingFeedback ? t("sending") : t("submit")}
               </button>
             </div>
           )}
 
           {/* Rate app */}
-          <button type="button" onClick={() => showToast("Rate us on your app store!")}
+          <button type="button" onClick={() => showToast(t("rate.prompt"))}
             className="flex w-full items-center justify-between h-[52px] px-4 border-t border-border cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              <span className="text-[15px] text-text">Rate this app</span>
+              <span className="text-[15px] text-text">{t("rate.app")}</span>
             </div>
           </button>
 
@@ -600,7 +671,7 @@ export function Profile() {
             className="flex w-full items-center justify-between h-[52px] px-4 border-t border-border cursor-pointer hover:bg-card-hover">
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-              <span className="text-[15px] text-text">Secret chat</span>
+              <span className="text-[15px] text-text">{t("secret.chat")}</span>
             </div>
             <span className="text-[12px] text-muted">PIN 0000</span>
           </button>
@@ -610,29 +681,29 @@ export function Profile() {
         <button type="button" onClick={() => setShowResetConfirm(true)}
           className="flex w-full items-center justify-center gap-2 rounded-btn border border-danger/30 px-4 py-3 text-[14px] text-danger cursor-pointer hover:bg-danger/10 transition-colors">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-          Reset tracking data
+          {t("profile.reset")}
         </button>
 
         {/* Sign out */}
         <button type="button" onClick={handleLogout}
           className="flex w-full items-center justify-center gap-2 rounded-btn border border-border px-4 py-3 text-[14px] text-muted cursor-pointer hover:bg-card-hover transition-colors">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-          Sign out
+          {t("sign.out")}
         </button>
 
-        <p className="pt-4 text-center text-[11px] text-subtle">Made with love by Robel, for Atnasya</p>
+        <p className="pt-4 text-center text-[11px] text-subtle">{t("app.footer")}</p>
       </div>
 
       {/* Reset confirmation modal */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm rounded-card bg-card shadow-card p-6 space-y-4">
-            <h3 className="text-[18px] font-bold text-text">Reset all tracking data?</h3>
+            <h3 className="text-[18px] font-bold text-text">{t("profile.reset.confirm")}</h3>
             <p className="text-[14px] text-muted leading-relaxed">This will permanently delete all your cycles, symptoms, and vitals. You'll be taken through onboarding again.</p>
             <div className="flex gap-3">
-              <button type="button" onClick={() => setShowResetConfirm(false)} className="flex-1 rounded-btn border border-border px-4 py-3 text-[14px] font-semibold text-text cursor-pointer hover:bg-card-hover">Cancel</button>
+              <button type="button" onClick={() => setShowResetConfirm(false)} className="flex-1 rounded-btn border border-border px-4 py-3 text-[14px] font-semibold text-text cursor-pointer hover:bg-card-hover">{t("cancel")}</button>
               <button type="button" onClick={handleReset} disabled={resetting} className="flex-1 rounded-btn bg-danger px-4 py-3 text-[14px] font-semibold text-white cursor-pointer hover:opacity-90 disabled:opacity-50">
-                {resetting ? "Resetting…" : "Reset"}
+                {resetting ? t("resetting") : t("delete")}
               </button>
             </div>
           </motion.div>

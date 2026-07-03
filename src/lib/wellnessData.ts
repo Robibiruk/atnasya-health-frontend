@@ -37,32 +37,32 @@ export const BREATHING_EXERCISES: GuidedBreathing[] = [
 ];
 
 export const MEDITATIONS: Meditation[] = [
-  { id: "m1", title: "Gentle Morning Awareness", duration: 5, phase: "any", description: "Start your day with clarity and calm.", color: "#6366F1" },
-  { id: "m2", title: "PMS Calm & Soothe", duration: 10, phase: "luteal", description: "For those days when emotions run high.", color: "#E879A0" },
-  { id: "m3", title: "Period Rest & Recharge", duration: 8, phase: "menstrual", description: "Honor your body's need to rest.", color: "#F59E0B" },
-  { id: "m4", title: "Fertile Ground Meditation", duration: 7, phase: "fertile", description: "Connect with your body's creative energy.", color: "#10B981" },
-  { id: "m5", title: "Pregnancy Relaxation", duration: 15, phase: "pregnancy", description: "Deep relaxation for expectant mothers.", color: "#8B5CF6" },
-  { id: "m6", title: "Postpartum Grounding", duration: 10, phase: "postpartum", description: "Gentle grounding after birth.", color: "#EC4899" },
-  { id: "m7", title: "Ovulation Confidence Boost", duration: 5, phase: "ovulation", description: "Harness your peak confidence and energy.", color: "#F59E0B" },
-  { id: "m8", title: "Evening Wind-Down", duration: 12, phase: "any", description: "Release the day and prepare for restful sleep.", color: "#6366F1" },
+  { id: "m1", title: "Gentle Morning Awareness", duration: 5, phase: "any", description: "Start your day with clarity and calm.", color: "#6366F1", image: "/illustrations/meditations/Gentle-Morning-Awareness.jpg" },
+  { id: "m2", title: "PMS Calm & Soothe", duration: 10, phase: "luteal", description: "For those days when emotions run high.", color: "#E879A0", image: "/illustrations/meditations/PMS-Calm-and-Soothe.jpg" },
+  { id: "m3", title: "Period Rest & Recharge", duration: 8, phase: "menstrual", description: "Honor your body's need to rest.", color: "#F59E0B", image: "/illustrations/meditations/Period-Rest-and-Recharge.jpg" },
+  { id: "m4", title: "Fertile Ground Meditation", duration: 7, phase: "fertile", description: "Connect with your body's creative energy.", color: "#10B981", image: "/illustrations/meditations/Fertile-Ground-Meditation.jpg" },
+  { id: "m5", title: "Pregnancy Relaxation", duration: 15, phase: "pregnancy", description: "Deep relaxation for expectant mothers.", color: "#8B5CF6", image: "/illustrations/meditations/Pregnancy-Relaxation.jpg" },
+  { id: "m6", title: "Postpartum Grounding", duration: 10, phase: "postpartum", description: "Gentle grounding after birth.", color: "#EC4899", image: "/illustrations/meditations/Postpartum-Grounding.png" },
+  { id: "m7", title: "Ovulation Confidence Boost", duration: 5, phase: "ovulation", description: "Harness your peak confidence and energy.", color: "#F59E0B", image: "/illustrations/meditations/Ovulation-Confidence-Boost.jpg" },
+  { id: "m8", title: "Evening Wind-Down", duration: 12, phase: "any", description: "Release the day and prepare for restful sleep.", color: "#6366F1", image: "/illustrations/meditations/Evening-Wind-Down.jpg" },
 ];
 
 export const YOGA_ROUTINES: YogaRoutine[] = [
-  { id: "y1", title: "Period Pain Relief", duration: 10, phase: "menstrual", description: "Gentle stretches to ease cramps and lower back tension.", poses: ["Child's Pose", "Cat-Cow", "Reclining Bound Angle", "Knees-to-Chest", "Savasana"], color: "#F59E0B" },
-  { id: "y2", title: "Follicular Flow", duration: 15, phase: "follicular", description: "Vinyasa flow to match rising energy levels.", poses: ["Sun Salutations A", "Standing Forward Fold", "Low Lunge", "Warrior I", "Seated Twist"], color: "#6366F1" },
-  { id: "y3", title: "Fertility Yoga", duration: 20, phase: "fertile", description: "Hip-opening sequence to support pelvic health.", poses: ["Bound Angle", "Pigeon Pose", "Garland Pose", "Bridge Pose", "Legs Up the Wall"], color: "#10B981" },
-  { id: "y4", title: "Luteal Phase Unwind", duration: 15, phase: "luteal", description: "Slow, grounding practice for PMS relief.", poses: ["Wide-Legged Forward Fold", "Seated Forward Bend", "Supine Twist", "Happy Baby", "Savasana"], color: "#E879A0" },
-  { id: "y5", title: "Pregnancy Gentle Flow", duration: 15, phase: "pregnancy", description: "Safe prenatal yoga for all trimesters.", poses: ["Cat-Cow", "Side Stretch", "Butterfly", "Warrior II (modified)", "Side-Lying Savasana"], color: "#8B5CF6" },
-  { id: "y6", title: "Postpartum Recovery", duration: 12, phase: "postpartum", description: "Gentle core and pelvic floor reconnection.", poses: ["Pelvic Tilts", "Bridge (feet together)", "Cat-Cow", "Seated Side Bend", "Savasana"], color: "#EC4899" },
+  { id: "y1", title: "Period Pain Relief", duration: 10, phase: "menstrual", description: "Gentle stretches to ease cramps and lower back tension.", poses: ["Child's Pose", "Cat-Cow", "Reclining Bound Angle", "Knees-to-Chest", "Savasana"], color: "#F59E0B", image: "/illustrations/yoga/Period-Pain-Relief.jpg" },
+  { id: "y2", title: "Follicular Flow", duration: 15, phase: "follicular", description: "Vinyasa flow to match rising energy levels.", poses: ["Sun Salutations A", "Standing Forward Fold", "Low Lunge", "Warrior I", "Seated Twist"], color: "#6366F1", image: "/illustrations/yoga/Follicular-Flow.jpg" },
+  { id: "y3", title: "Fertility Yoga", duration: 20, phase: "fertile", description: "Hip-opening sequence to support pelvic health.", poses: ["Bound Angle", "Pigeon Pose", "Garland Pose", "Bridge Pose", "Legs Up the Wall"], color: "#10B981", image: "/illustrations/yoga/Fertility-Yoga.jpg" },
+  { id: "y4", title: "Luteal Phase Unwind", duration: 15, phase: "luteal", description: "Slow, grounding practice for PMS relief.", poses: ["Wide-Legged Forward Fold", "Seated Forward Bend", "Supine Twist", "Happy Baby", "Savasana"], color: "#E879A0", image: "/illustrations/yoga/Luteal-Phase-Unwind.jpg" },
+  { id: "y5", title: "Pregnancy Gentle Flow", duration: 15, phase: "pregnancy", description: "Safe prenatal yoga for all trimesters.", poses: ["Cat-Cow", "Side Stretch", "Butterfly", "Warrior II (modified)", "Side-Lying Savasana"], color: "#8B5CF6", image: "/illustrations/yoga/Pregnancy-Gentle-Flow.jpg" },
+  { id: "y6", title: "Postpartum Recovery", duration: 12, phase: "postpartum", description: "Gentle core and pelvic floor reconnection.", poses: ["Pelvic Tilts", "Bridge (feet together)", "Cat-Cow", "Seated Side Bend", "Savasana"], color: "#EC4899", image: "/illustrations/yoga/Postpartum-Recovery.jpg" },
 ];
 
 export const SLEEP_STORIES: SleepStory[] = [
-  { id: "s1", title: "Moonlit Meadow", duration: 15, narrator: "Luna", theme: "nature", description: "Walk through a peaceful meadow under a full moon." },
-  { id: "s2", title: "The Cosy Cabin", duration: 20, narrator: "James", theme: "cosy", description: "Rain falls on a cabin roof as you drift off by the fire." },
-  { id: "s3", title: "Starlight Voyage", duration: 18, narrator: "Nova", theme: "fantasy", description: "Float through a star-filled galaxy in a warm air balloon." },
-  { id: "s4", title: "Gentle Rain Garden", duration: 12, narrator: "Luna", theme: "nature", description: "Explore a Japanese garden in a warm spring rain." },
-  { id: "s5", title: "Ocean Serenade", duration: 25, narrator: "James", theme: "nature", description: "Drift on calm waves beneath a canopy of stars." },
-  { id: "s6", title: "The Enchanted Library", duration: 16, narrator: "Nova", theme: "fantasy", description: "Discover a magical library where every book lulls you to sleep." },
+  { id: "s1", title: "Moonlit Meadow", duration: 15, narrator: "Luna", theme: "nature", description: "Walk through a peaceful meadow under a full moon.", videoUrl: "https://www.youtube.com/embed/Knw6TYuzIjM" },
+  { id: "s2", title: "The Cosy Cabin", duration: 20, narrator: "James", theme: "cosy", description: "Rain falls on a cabin roof as you drift off by the fire.", videoUrl: "https://www.youtube.com/embed/1RcVIuZ8Wdk" },
+  { id: "s3", title: "Starlight Voyage", duration: 18, narrator: "Nova", theme: "fantasy", description: "Float through a star-filled galaxy in a warm air balloon.", videoUrl: "https://www.youtube.com/embed/m5EOtKf5qZo" },
+  { id: "s4", title: "Gentle Rain Garden", duration: 12, narrator: "Luna", theme: "nature", description: "Explore a Japanese garden in a warm spring rain.", videoUrl: "https://www.youtube.com/embed/v6VNvlWawcU" },
+  { id: "s5", title: "Ocean Serenade", duration: 25, narrator: "James", theme: "nature", description: "Drift on calm waves beneath a canopy of stars.", videoUrl: "https://www.youtube.com/embed/8dP0JMa_rqw" },
+  { id: "s6", title: "The Enchanted Library", duration: 16, narrator: "Nova", theme: "fantasy", description: "Discover a magical library where every book lulls you to sleep.", videoUrl: "https://www.youtube.com/embed/9lJoqJr9CIc" },
 ];
 
 export const NUTRITION_SUGGESTIONS: NutritionSuggestion[] = [

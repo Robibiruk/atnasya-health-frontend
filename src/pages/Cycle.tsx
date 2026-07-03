@@ -239,8 +239,12 @@ export function CyclePage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      await Promise.all([fetchPrediction(), fetchCycles()]);
-      buildPhaseMap();
+      const [fetchedCycles] = await Promise.all([fetchCycles(), fetchPrediction()]);
+      if (fetchedCycles) {
+        buildPhaseMap(fetchedCycles);
+      } else {
+        buildPhaseMap();
+      }
       try {
         const res = await api.get<ApiResponse<SymptomEntry[]>>("/symptoms?limit=90");
         if (res.data.success) setSymptomList(res.data.data);

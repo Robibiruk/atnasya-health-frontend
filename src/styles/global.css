@@ -57,7 +57,256 @@
   --shadow-card: 0 4px 24px rgba(0,0,0,0.5);
 }
 
-/* ─── Base reset ─── */
+/* ─── Color Palettes (scoped to Home tab contents only) ─── */
+/* Each palette overrides the full token set so the Home tab feels
+   like a cohesive mini-theme while other tabs keep the base tokens. */
+
+/* Blush — warm rose/pink tones */
+[data-home-palette="blush"] {
+  --color-primary: #D4627F;
+  --color-primary-light: #E889A3;
+  --color-accent: #F2A6B8;
+  --color-accent-light: #F8C4D4;
+  --color-bg: #FFF5F7;
+  --color-surface: #FFF0F3;
+  --color-card: #FFFFFF;
+  --color-card-hover: #FFF0F3;
+  --color-text: #4A1020;
+  --color-muted: #9B5060;
+  --color-subtle: #B8808A;
+  --color-border: #F5C4CF;
+  --color-period: #F2A6B8;
+  --color-fertile: #10B981;
+  --color-ovulation: #D4627F;
+  --color-pms: #F59E0B;
+  --color-follicular: #60A5FA;
+  --shadow-card: 0 2px 14px rgba(212, 98, 127, 0.12);
+}
+html[data-theme="dark"] [data-home-palette="blush"] {
+  --color-primary: #F4A7C0;
+  --color-primary-light: #E889A3;
+  --color-accent: #F08B9E;
+  --color-accent-light: #D4627F;
+  --color-bg: #1A0A10;
+  --color-surface: #291018;
+  --color-card: #351025;
+  --color-card-hover: #401830;
+  --color-text: #F8D4DE;
+  --color-muted: #C89AA6;
+  --color-subtle: #9B6F7A;
+  --color-border: #5A2838;
+  --color-period: #E889A3;
+  --color-fertile: #34D399;
+  --color-ovulation: #F4A7C0;
+  --color-pms: #FBBF24;
+  --color-follicular: #60A5FA;
+  --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Lavender — purple/violet tones */
+[data-home-palette="lavender"] {
+  --color-primary: #8B5CF6;
+  --color-primary-light: #A78BFA;
+  --color-accent: #C084FC;
+  --color-accent-light: #D8B4FE;
+  --color-bg: #FBF9FF;
+  --color-surface: #F4F0FF;
+  --color-card: #FFFFFF;
+  --color-card-hover: #F4F0FF;
+  --color-text: #2E1065;
+  --color-muted: #7C6FB0;
+  --color-subtle: #9B8FC8;
+  --color-border: #E4D9FE;
+  --color-period: #C084FC;
+  --color-fertile: #10B981;
+  --color-ovulation: #8B5CF6;
+  --color-pms: #F59E0B;
+  --color-follicular: #60A5FA;
+  --shadow-card: 0 2px 14px rgba(139, 92, 246, 0.12);
+}
+html[data-theme="dark"] [data-home-palette="lavender"] {
+  --color-primary: #A78BFA;
+  --color-primary-light: #8B5CF6;
+  --color-accent: #C084FC;
+  --color-accent-light: #8B5CF6;
+  --color-bg: #0F0A24;
+  --color-surface: #181030;
+  --color-card: #221845;
+  --color-card-hover: #2E2058;
+  --color-text: #EDE9FE;
+  --color-muted: #A89AC8;
+  --color-subtle: #7C6FB0;
+  --color-border: #3B2A6A;
+  --color-period: #C084FC;
+  --color-fertile: #34D399;
+  --color-ovulation: #A78BFA;
+  --color-pms: #FBBF24;
+  --color-follicular: #60A5FA;
+  --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Ocean — blue/teal tones */
+[data-home-palette="ocean"] {
+  --color-primary: #3B82F6;
+  --color-primary-light: #60A5FA;
+  --color-accent: #06B6D4;
+  --color-accent-light: #67E8F9;
+  --color-bg: #F5FAFF;
+  --color-surface: #EFF6FF;
+  --color-card: #FFFFFF;
+  --color-card-hover: #EFF6FF;
+  --color-text: #0C2D48;
+  --color-muted: #50769C;
+  --color-subtle: #7A9AB5;
+  --color-border: #D0E4FF;
+  --color-period: #06B6D4;
+  --color-fertile: #10B981;
+  --color-ovulation: #3B82F6;
+  --color-pms: #F59E0B;
+  --color-follicular: #60A5FA;
+  --shadow-card: 0 2px 14px rgba(59, 130, 246, 0.12);
+}
+html[data-theme="dark"] [data-home-palette="ocean"] {
+  --color-primary: #60A5FA;
+  --color-primary-light: #3B82F6;
+  --color-accent: #22D3EE;
+  --color-accent-light: #06B6D4;
+  --color-bg: #081824;
+  --color-surface: #0C2438;
+  --color-card: #11304D;
+  --color-card-hover: #183D5E;
+  --color-text: #E0F2FE;
+  --color-muted: #8AB6D0;
+  --color-subtle: #5A90A8;
+  --color-border: #1E4060;
+  --color-period: #22D3EE;
+  --color-fertile: #34D399;
+  --color-ovulation: #60A5FA;
+  --color-pms: #FBBF24;
+  --color-follicular: #38BDF8;
+  --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Sage — green/earthy tones */
+[data-home-palette="sage"] {
+  --color-primary: #6B8F71;
+  --color-primary-light: #8FB896;
+  --color-accent: #D4A373;
+  --color-accent-light: #E8C49A;
+  --color-bg: #F6FAF4;
+  --color-surface: #EEF5EB;
+  --color-card: #FFFFFF;
+  --color-card-hover: #EEF5EB;
+  --color-text: #1F3323;
+  --color-muted: #5A7A5F;
+  --color-subtle: #7A9F80;
+  --color-border: #D3E4CF;
+  --color-period: #D4A373;
+  --color-fertile: #10B981;
+  --color-ovulation: #6B8F71;
+  --color-pms: #F59E0B;
+  --color-follicular: #60A5FA;
+  --shadow-card: 0 2px 14px rgba(107, 143, 113, 0.12);
+}
+html[data-theme="dark"] [data-home-palette="sage"] {
+  --color-primary: #8FB896;
+  --color-primary-light: #6B8F71;
+  --color-accent: #D4A373;
+  --color-accent-light: #B88A63;
+  --color-bg: #0F1A10;
+  --color-surface: #152218;
+  --color-card: #1C3020;
+  --color-card-hover: #273C2A;
+  --color-text: #E8F5E9;
+  --color-muted: #8FA896;
+  --color-subtle: #608068;
+  --color-border: #2A4030;
+  --color-period: #D4A373;
+  --color-fertile: #34D399;
+  --color-ovulation: #8FB896;
+  --color-pms: #FBBF24;
+  --color-follicular: #60A5FA;
+  --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Monochrome — grayscale */
+[data-home-palette="monochrome"] {
+  --color-primary: #4B5563;
+  --color-primary-light: #6B7280;
+  --color-accent: #9CA3AF;
+  --color-accent-light: #D1D5DB;
+  --color-bg: #F9FAFB;
+  --color-surface: #F3F4F6;
+  --color-card: #FFFFFF;
+  --color-card-hover: #F3F4F6;
+  --color-text: #111827;
+  --color-muted: #6B7280;
+  --color-subtle: #9CA3AF;
+  --color-border: #E5E7EB;
+  --color-period: #9CA3AF;
+  --color-fertile: #10B981;
+  --color-ovulation: #4B5563;
+  --color-pms: #F59E0B;
+  --color-follicular: #60A5FA;
+  --shadow-card: 0 2px 14px rgba(17, 24, 39, 0.08);
+}
+html[data-theme="dark"] [data-home-palette="monochrome"] {
+  --color-primary: #9CA3AF;
+  --color-primary-light: #6B7280;
+  --color-accent: #D1D5DB;
+  --color-accent-light: #9CA3AF;
+  --color-bg: #0F1115;
+  --color-surface: #181B21;
+  --color-card: #1F232B;
+  --color-card-hover: #2A2F38;
+  --color-text: #F3F4F6;
+  --color-muted: #9CA3AF;
+  --color-subtle: #6B7280;
+  --color-border: #2F353E;
+  --color-period: #D1D5DB;
+  --color-fertile: #34D399;
+  --color-ovulation: #9CA3AF;
+  --color-pms: #FBBF24;
+  --color-follicular: #60A5FA;
+  --shadow-card: 0 4px 18px rgba(0,0,0,0.5);
+}
+
+/* Default home palette explicitly maps to base tokens */
+[data-home-palette="default"] {
+  --color-bg: #FAFAFA;
+  --color-surface: #FAFAFA;
+  --color-card: #FFFFFF;
+  --color-card-hover: #F5F0FB;
+  --color-text: #1A1A2E;
+  --color-muted: #6B7280;
+  --color-subtle: #9CA3AF;
+  --color-border: #E5E7EB;
+  --shadow-card: 0 2px 12px rgba(123, 79, 158, 0.08);
+}
+html[data-theme="dark"] [data-home-palette="default"] {
+  --color-bg: #09071A;
+  --color-surface: #09071A;
+  --color-card: #13102A;
+  --color-card-hover: #1E1838;
+  --color-text: #F0E8FF;
+  --color-muted: #9B8FBB;
+  --color-subtle: #6B5F8A;
+  --color-border: #2A2048;
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.5);
+}
+
+/* ─── Palette-scoped background for Home tab ─── */
+/* The Home tab root sets data-home-palette. We apply a background here
+   so the palette actually covers the full visible area, not just children. */
+.home-palette-scope {
+  /* background-color inherits from the palette’s --color-bg via .bg-surface,
+     but the body is outside. To make the palette "feel" right, we paint
+     the min-height area with the surface color and use the palette tokens. */
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

@@ -255,6 +255,20 @@ function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   const setUser = useAuthStore((s) => s.setUser);
   const setLoading = useAuthStore((s) => s.setLoading);
+  const favicon = useAuthStore((s) => s.favicon);
+
+  useEffect(() => {
+    const link =
+      typeof document !== "undefined"
+        ? document.querySelector<HTMLLinkElement>('head link[rel="icon"][type="image/png"]')
+        : null;
+    if (link) {
+      const next = favicon ? `/favicon/${favicon}.png` : "/favicon/1.png";
+      if (link.getAttribute("href") !== next) {
+        link.setAttribute("href", next);
+      }
+    }
+  }, [favicon]);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;

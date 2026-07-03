@@ -9,14 +9,22 @@ import { NotificationBanner } from "../components/cycle/NotificationBanner";
 import { PregnancyWidget } from "../components/cycle/PregnancyWidget";
 import { InsightStoryCards } from "../components/ai/InsightStoryCards";
 import { QuickLogSheet } from "../components/layout/QuickLogSheet";
+import { ThemePalettePicker } from "../components/ui/ThemePalettePicker";
+import { PetIconDisplay } from "../components/ui/PetIconDisplay";
+import { PetPickerModal } from "../components/ui/PetPickerModal";
 import { useCycle } from "../hooks/useCycle";
 import { useInsights } from "../hooks/useInsights";
 import { useCycleStore } from "../store/cycleStore";
 import { useAuthStore } from "../store/authStore";
 import { Spinner } from "../components/ui/Spinner";
 import { api } from "../lib/api";
+import { useTranslation } from "react-i18next";
 
 export function Home() {
+  const palette = useAuthStore((s) => s.palette);
+  const pet = useAuthStore((s) => s.pet);
+  const theme = useAuthStore((s) => s.theme);
+  const { t, i18n } = useTranslation();
   const { fetchPrediction, fetchCycles, buildPhaseMap } = useCycle();
   const { fetchToday } = useInsights();
   const cycles = useCycleStore((s) => s.cycles);
@@ -30,6 +38,7 @@ export function Home() {
   const [showKickToast, setShowKickToast] = useState(false);
   const [partnerMessages, setPartnerMessages] = useState<Array<{ message: string; emoji: string; id: string }>>([]);
   const [dismissedMessages, setDismissedMessages] = useState<Set<string>>(new Set());
+  const [petPickerOpen, setPetPickerOpen] = useState(false);
 
   // Check if pregnancy mode — when goal is "track" and onboarding says pregnant=true or cycle phase is unknown with longer gaps
   const isPregnancyMode = goal === "track" && onboardingData?.pregnant === true;
@@ -37,7 +46,7 @@ export function Home() {
   // Compute a mock due date from current date + ~20 weeks if pregnant
   const pregnancyWeek = isPregnancyMode ? Math.min(40, Math.max(4, Math.floor(((dayOfCycle ?? 1) / 28) * 40))) : 0;
   const mockDueDate = isPregnancyMode
-    ? new Date(Date.now() + (280 - pregnancyWeek * 7) * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    ? new Date(Date.now() + (280 - pregnancyWeek * 7) * 86400000).toLocaleDateString(i18n.language === "ar" ? "ar-SA" : i18n.language, { month: "long", day: "numeric", year: "numeric" })
     : "";
 
   useEffect(() => {
@@ -82,26 +91,39 @@ export function Home() {
 
   // Cycle status line
   const cycleStatus = currentPhase && dayOfCycle
-    ? `Day ${dayOfCycle} · ${currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1)}`
-    : "Log your first period to begin tracking";
+    ? t("home.cycle.status", { day: dayOfCycle, phase: currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1) })
+    : t("home.cycle.empty");
 
   return (
-    <div className="pb-24">
+    <div data-theme={theme} className="pb-24 home-palette-scope" data-home-palette={palette}>
       <TopBar />
 
       <div className="space-y-4 px-5 pt-3">
-        {/* Greeting + cycle status */}
+        {/* Greeting + cycle status + pet */}
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[13px] text-muted">Your cycle</p>
-            <p className="text-[16px] font-bold text-text">{cycleStatus}</p>
-          </div>
-          {streak > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5">
-              <span className="text-[14px]">🔥</span>
-              <span className="text-[12px] font-bold text-accent">{streak}d</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPetPickerOpen(true)}
+              className="flex-shrink-0 rounded-full p-0.5 cursor-pointer"
+              title="Change pet"
+            >
+              <PetIconDisplay size={28} />
+            </button>
+            <div>
+              <p className="text-[13px] text-muted">{t("cycle.status")}</p>
+              <p className="text-[16px] font-bold text-text">{cycleStatus}</p>
             </div>
-          )}
+          </div>
+          <div className="flex items-center gap-2">
+            {streak > 0 && (
+              <div className="flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5">
+                <span className="text-[14px]">🔥</span>
+                <span className="text-[12px] font-bold text-accent">{streak}{t("home.streak.days")}</span>
+              </div>
+            )}
+            <ThemePalettePicker compact />
+          </div>
         </div>
 
         {/* Partner messages notification */}
@@ -111,7 +133,7 @@ export function Home() {
               <div key={msg.id} className="rounded-btn flex items-start gap-3 px-4 py-3 bg-accent/10 border border-accent/20">
                 <span className="text-[20px]">{msg.emoji}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-semibold text-text">Message from partner</p>
+                  <p className="text-[12px] font-semibold text-text">{t("partner.message.from")}</p>
                   <p className="text-[13px] text-muted">{msg.message}</p>
                 </div>
                 <button type="button" onClick={() => setDismissedMessages((prev) => new Set(prev).add(msg.id))}
@@ -127,9 +149,9 @@ export function Home() {
         {isNewUser ? (
           <div className="rounded-card bg-card shadow-card p-8 text-center space-y-4">
             <span className="text-[40px]">🌸</span>
-            <h2 className="text-[18px] font-bold text-text">You&apos;re all set!</h2>
+            <h2 className="text-[18px] font-bold text-text">{t("home.all.set")}</h2>
             <p className="text-[14px] text-muted max-w-[260px] mx-auto">
-              Log your first day to start tracking your cycle and get personalized insights.
+              {t("home.empty.state")}
             </p>
             <div className="pt-2">
               <QuickStats />
@@ -162,7 +184,7 @@ export function Home() {
 
         {/* Insight story cards */}
         <div>
-          <h2 className="text-[15px] font-bold text-text mb-2">Daily insights</h2>
+          <h2 className="text-[15px] font-bold text-text mb-2">{t("home.daily.insights")}</h2>
           <InsightStoryCards />
         </div>
       </div>
@@ -173,9 +195,12 @@ export function Home() {
       {/* Kick counter toast */}
       {showKickToast && (
         <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 rounded-full bg-accent px-5 py-2.5 text-[13px] font-semibold text-white shadow-card animate-fade-up">
-          Kicks logged ✓
+          {t("home.kicks.logged")}
         </div>
       )}
+
+      {/* Pet Picker Modal */}
+      <PetPickerModal open={petPickerOpen} onClose={() => setPetPickerOpen(false)} />
     </div>
   );
 }

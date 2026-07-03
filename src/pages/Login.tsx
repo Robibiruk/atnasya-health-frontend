@@ -11,8 +11,10 @@ import {
 import { auth, googleProvider } from "../lib/firebase";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
+import { useTranslation } from "react-i18next";
 
 export function Login() {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const theme = useAuthStore((s) => s.theme);
@@ -78,8 +80,8 @@ export function Login() {
   };
 
   const handleEmail = async () => {
-    if (!email || !password) { setError("Email and password are required"); return; }
-    if (isSignUp && !name.trim()) { setError("Please enter your name"); return; }
+    if (!email || !password) { setError(t("login.error.incomplete")); return; }
+    if (isSignUp && !name.trim()) { setError(t("login.error.name")); return; }
     setLoading(true);
     setError(null);
     try {
@@ -89,7 +91,7 @@ export function Login() {
       setUser(cred.user);
       await registerBackend(cred.user, name.trim() || undefined);
     } catch {
-      setError(isSignUp ? "Could not create account. The email may be in use." : "Incorrect email or password.");
+      setError(isSignUp ? t("login.error.email.use") : t("login.error.incorrect"));
     } finally {
       setLoading(false);
     }
@@ -102,7 +104,7 @@ export function Login() {
         <button
           type="button"
           onClick={toggleTheme}
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label={theme === "dark" ? t("theme.light") : t("theme.dark")}
           className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card cursor-pointer transition-colors duration-150 hover:bg-card-hover"
         >
           {theme === "dark" ? (
@@ -127,10 +129,10 @@ export function Login() {
           <circle cx="28" cy="28" r="3" fill="white" />
         </svg>
         <h1 className="text-[28px] font-bold text-primary" style={{ fontFamily: "DM Serif Display, serif" }}>
-          Atnasya Health
+          {t("app.name")}
         </h1>
         <p className="mt-2 text-[14px] text-muted max-w-[260px]">
-          Your private health companion, made with love by Robel.
+          {t("login.tagline")}
         </p>
       </div>
 
@@ -148,17 +150,17 @@ export function Login() {
 
         <div className="flex items-center gap-2 text-muted">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-[12px]">or</span>
+          <span className="text-[12px]">{t("login.or")}</span>
           <div className="h-px flex-1 bg-border" />
         </div>
 
         {isSignUp && (
           <div>
-            <label htmlFor="signup-name" className="sr-only">Your name</label>
+            <label htmlFor="signup-name" className="sr-only">{t("login.name")}</label>
             <input
               id="signup-name"
               type="text"
-              placeholder="Your name"
+              placeholder={t("login.name")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -167,11 +169,11 @@ export function Login() {
           </div>
         )}
         <div>
-          <label htmlFor="email-input" className="sr-only">Email</label>
+          <label htmlFor="email-input" className="sr-only">{t("login.email")}</label>
           <input
             id="email-input"
             type="email"
-            placeholder="Email"
+            placeholder={t("login.email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -180,11 +182,11 @@ export function Login() {
           />
         </div>
         <div>
-          <label htmlFor="password-input" className="sr-only">Password</label>
+          <label htmlFor="password-input" className="sr-only">{t("login.password")}</label>
           <input
             id="password-input"
             type="password"
-            placeholder="Password"
+            placeholder={t("login.password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -200,7 +202,7 @@ export function Login() {
           aria-busy={loading ? "true" : "false"}
           className="w-full rounded-btn bg-primary text-white px-5 py-3.5 text-[15px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-primary-light disabled:opacity-50"
         >
-          {loading ? "Signing in..." : isSignUp ? "Create account" : "Sign in with email"}
+          {loading ? t("login.signing.in") : isSignUp ? t("login.create") : t("login.signin")}
         </button>
 
         {error && <p role="alert" aria-live="polite" className="text-center text-[13px] text-danger">{error}</p>}
@@ -210,12 +212,12 @@ export function Login() {
           onClick={() => setIsSignUp(!isSignUp)}
           className="w-full text-center text-[13px] text-muted underline cursor-pointer"
         >
-          {isSignUp ? "Already have an account? Sign in" : "New here? Create an account"}
+          {isSignUp ? t("login.have.account") : t("login.new.here")}
         </button>
       </div>
 
       <p className="mt-8 text-center text-[11px] text-subtle">
-        Private · No ads · No data selling
+        {t("login.privacy")}
       </p>
     </div>
   );

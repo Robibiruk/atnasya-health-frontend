@@ -1,6 +1,6 @@
 // Selfcare — comprehensive wellness hub with all features.
 import { useEffect, useState, useCallback, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "../components/layout/TopBar";
 import { InsightCarousel } from "../components/ai/InsightCarousel";
 import { VitalChart } from "../components/vitals/VitalChart";
@@ -133,10 +133,30 @@ function ReminderIcon({ className }: { className?: string }) {
 }
 
 // ========== SECTION HEADER ==========
-function SectionHeader({ emoji, title, subtitle }: { emoji: string; title: string; subtitle?: string }) {
+function SectionHeader({ emoji, icon, title, subtitle }: { emoji?: string; icon?: React.ReactNode; title: string; subtitle?: string }) {
   return (
     <div className="flex items-center gap-3 mb-3">
-      <span className="text-[22px]">{emoji}</span>
+      {icon ? <span className="flex h-8 w-8 items-center justify-center">{icon}</span> : emoji ? <span className="text-[22px]">{emoji}</span> : null}
+      <div>
+        <h2 className="text-[17px] font-bold text-text">{title}</h2>
+        {subtitle && <p className="text-[12px] text-muted">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
+function LibraryHeader({ image, fallbackIcon, title, subtitle }: { image?: string; fallbackIcon?: React.ReactNode; title: string; subtitle?: string }) {
+  const [imgError, setImgError] = useState(false);
+  const showImage = !!image && !imgError;
+  return (
+    <div className="flex items-center gap-3 mb-3">
+      <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white/60">
+        {showImage ? (
+          <img src={image} alt={title} className="h-8 w-8 object-cover" onError={() => setImgError(true)} />
+        ) : fallbackIcon ? (
+          fallbackIcon
+        ) : null}
+      </span>
       <div>
         <h2 className="text-[17px] font-bold text-text">{title}</h2>
         {subtitle && <p className="text-[12px] text-muted">{subtitle}</p>}
@@ -236,14 +256,20 @@ function BreathingCard({ exercise, onStart }: { exercise: GuidedBreathing; onSta
 
 // ========== MEDITATION CARD ==========
 function MeditationCard({ item, onStart }: { item: Meditation; onStart: (m: Meditation) => void }) {
+  const [imgError, setImgError] = useState(false);
+  const showImage = item.image && !imgError;
   return (
     <button
       type="button"
       onClick={() => onStart(item)}
       className="flex-shrink-0 w-[160px] rounded-btn bg-card shadow-card p-4 text-left cursor-pointer hover:scale-[1.02] transition-transform duration-150"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-full mb-2" style={{ backgroundColor: item.color + "22" }}>
-        <MeditationIcon className="h-5 w-5" style={{ color: item.color }} />
+      <div className="flex h-10 w-10 items-center justify-center rounded-full mb-2 overflow-hidden" style={{ backgroundColor: item.color + "22" }}>
+        {showImage ? (
+          <img src={item.image} alt={item.title} className="h-10 w-10 object-cover" onError={() => setImgError(true)} />
+        ) : (
+          <MeditationIcon className="h-5 w-5" style={{ color: item.color }} />
+        )}
       </div>
       <p className="text-[13px] font-semibold text-text mb-1">{item.title}</p>
       <div className="flex items-center gap-2">
@@ -256,14 +282,20 @@ function MeditationCard({ item, onStart }: { item: Meditation; onStart: (m: Medi
 
 // ========== YOGA CARD ==========
 function YogaCard({ routine, onStart }: { routine: YogaRoutine; onStart: (r: YogaRoutine) => void }) {
+  const [imgError, setImgError] = useState(false);
+  const showImage = routine.image && !imgError;
   return (
     <button
       type="button"
       onClick={() => onStart(routine)}
       className="flex-shrink-0 w-[180px] rounded-btn bg-card shadow-card p-4 text-left cursor-pointer hover:scale-[1.02] transition-transform duration-150"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-full mb-2" style={{ backgroundColor: routine.color + "22" }}>
-        <YogaIcon className="h-5 w-5" style={{ color: routine.color }} />
+      <div className="flex h-10 w-10 items-center justify-center rounded-full mb-2 overflow-hidden" style={{ backgroundColor: routine.color + "22" }}>
+        {showImage ? (
+          <img src={routine.image} alt={routine.title} className="h-10 w-10 object-cover" onError={() => setImgError(true)} />
+        ) : (
+          <YogaIcon className="h-5 w-5" style={{ color: routine.color }} />
+        )}
       </div>
       <p className="text-[13px] font-semibold text-text mb-1">{routine.title}</p>
       <p className="text-[11px] text-muted line-clamp-2">{routine.description}</p>
@@ -408,6 +440,8 @@ function BreathingPlayer({ exercise, onClose }: { exercise: GuidedBreathing; onC
 // ========== MEDITATION PLAYER (SIMPLIFIED) ==========
 function MeditationPlayer({ meditation, onClose }: { meditation: Meditation; onClose: () => void }) {
   const [timeLeft, setTimeLeft] = useState(meditation.duration * 60);
+  const [imgError, setImgError] = useState(false);
+  const showImage = !!meditation.image && !imgError;
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -419,13 +453,21 @@ function MeditationPlayer({ meditation, onClose }: { meditation: Meditation; onC
   const secs = timeLeft % 60;
 
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="rounded-card bg-card shadow-card p-8 text-center space-y-4">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full mx-auto" style={{ backgroundColor: meditation.color + "22" }}>
-        <MeditationIcon className="h-8 w-8" style={{ color: meditation.color }} />
+    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="rounded-card bg-card shadow-card p-6 sm:p-8 text-center space-y-4">
+      <div className="flex justify-center">
+        <span className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full" style={{ backgroundColor: meditation.color + "22" }}>
+          {showImage ? (
+            <img src={meditation.image} alt={meditation.title} className="h-24 w-24 object-cover" onError={() => setImgError(true)} />
+          ) : (
+            <MeditationIcon className="h-12 w-12" style={{ color: meditation.color }} />
+          )}
+        </span>
       </div>
-      <p className="text-[16px] font-bold text-text">{meditation.title}</p>
-      <p className="text-[13px] text-muted">{meditation.description}</p>
-      <p className="text-[36px] font-bold text-text tabular-nums">{String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}</p>
+      <div>
+        <p className="text-[16px] font-bold text-text">{meditation.title}</p>
+        <p className="text-[13px] text-muted">{meditation.description}</p>
+      </div>
+      <p className="text-[40px] font-bold text-text tabular-nums">{String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}</p>
       <button type="button" onClick={onClose} className="rounded-full border border-border px-5 py-2 text-[13px] font-semibold text-muted cursor-pointer hover:bg-card-hover">
         {timeLeft <= 0 ? "Finish" : "End session"}
       </button>
@@ -437,6 +479,8 @@ function MeditationPlayer({ meditation, onClose }: { meditation: Meditation; onC
 function YogaPlayer({ routine, onClose }: { routine: YogaRoutine; onClose: () => void }) {
   const [currentPose, setCurrentPose] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
+  const [imgError, setImgError] = useState(false);
+  const showImage = !!routine.image && !imgError;
 
   useEffect(() => {
     if (currentPose >= routine.poses.length) { onClose(); return; }
@@ -455,12 +499,19 @@ function YogaPlayer({ routine, onClose }: { routine: YogaRoutine; onClose: () =>
         <p className="text-[11px] font-semibold text-muted uppercase">{currentPose + 1} / {totalPoses}</p>
         <button type="button" onClick={onClose} className="text-[12px] text-muted cursor-pointer hover:text-text">Close</button>
       </div>
-      <div className="flex justify-center">
-        <YogaIcon className="h-12 w-12" style={{ color: routine.color }} />
-      </div>
-      <div className="text-center">
-        <p className="text-[18px] font-bold text-text">{routine.poses[currentPose]}</p>
-        <p className="text-[13px] text-muted">Hold for {timeLeft}s</p>
+      <div className="flex flex-col items-center gap-3">
+        <span className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full" style={{ backgroundColor: routine.color + "22" }}>
+          {showImage ? (
+            <img src={routine.image} alt={routine.title} className="h-20 w-20 object-cover" onError={() => setImgError(true)} />
+          ) : (
+            <YogaIcon className="h-10 w-10" style={{ color: routine.color }} />
+          )}
+        </span>
+        <div className="text-center">
+          <p className="text-[18px] font-bold text-text">{routine.title}</p>
+          <p className="text-[13px] text-muted">{routine.poses[currentPose]}</p>
+          <p className="text-[12px] text-muted">Hold for {timeLeft}s</p>
+        </div>
       </div>
       <div className="w-full bg-border rounded-full h-1.5">
         <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${((currentPose + 1) / totalPoses) * 100}%`, backgroundColor: routine.color }} />
@@ -469,41 +520,109 @@ function YogaPlayer({ routine, onClose }: { routine: YogaRoutine; onClose: () =>
   );
 }
 
-// ========== SLEEP STORY PLAYER ==========
+// ========== SLEEP STORY PLAYER (YouTube embed) ==========
 function SleepStoryPlayer({ story, onClose }: { story: SleepStory; onClose: () => void }) {
+  const [playing, setPlaying] = useState(false);
   const [timeLeft, setTimeLeft] = useState(story.duration * 60);
+  const playerRef = useRef<HTMLIFrameElement>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Extract YouTube video ID from embed URL
+  const videoId = story.videoUrl?.match(/embed\/([\w-]+)/)?.[1] || "";
+
+  const togglePlay = () => {
+    setPlaying((p) => !p);
+    if (playerRef.current?.contentWindow) {
+      playerRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: playing ? "pauseVideo" : "playVideo", args: "" }),
+        "*"
+      );
+    }
+  };
+
   useEffect(() => {
-    if (timeLeft <= 0) return;
-    const t = setInterval(() => setTimeLeft((s) => s - 1), 1000);
-    return () => clearInterval(t);
-  }, [timeLeft]);
+    if (playing) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((s) => Math.max(0, s - 1));
+      }, 1000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [playing]);
+
+  // Auto-close when timer runs out
+  useEffect(() => {
+    if (timeLeft <= 0) onClose();
+  }, [timeLeft, onClose]);
 
   const mins = Math.floor(timeLeft / 60);
   const secs = timeLeft % 60;
-  const totalMins = story.duration * 60;
-  const progress = 1 - timeLeft / totalMins;
+  const progress = story.duration * 60 > 0 ? 1 - timeLeft / (story.duration * 60) : 0;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-card bg-gradient-to-br from-indigo-500/10 to-purple-500/10 shadow-card p-6 space-y-4 border border-indigo-500/20">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-card bg-gradient-to-br from-indigo-500/10 to-purple-500/10 shadow-card p-6 space-y-4 border border-indigo-500/20 relative overflow-hidden">
+      {/* Invisible YouTube player */}
+      {videoId && (
+        <iframe
+          ref={playerRef}
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=0&controls=0&showinfo=0&rel=0&enablejsapi=1`}
+          className="absolute opacity-0 pointer-events-none"
+          style={{ width: 1, height: 1 }}
+          title={story.title}
+          allow="autoplay"
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold text-muted uppercase">Sleep story</p>
         <button type="button" onClick={onClose} className="text-[12px] text-muted cursor-pointer hover:text-text">Close</button>
       </div>
+
       <div className="text-center space-y-2">
-        <SleepStoryIcon className="h-10 w-10 mx-auto text-indigo-500" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full mx-auto bg-indigo-500/20 text-indigo-500">
+          <SleepStoryIcon className="h-7 w-7" />
+        </div>
         <p className="text-[16px] font-bold text-text">{story.title}</p>
         <p className="text-[12px] text-muted">Narrated by {story.narrator}</p>
         <p className="text-[13px] text-muted">{story.description}</p>
       </div>
-      <div className="flex items-center justify-center gap-3">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-indigo-500">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-        <span className="text-[14px] font-semibold text-muted tabular-nums">{String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}</span>
+
+      {/* Audio bar — play/pause + time + progress */}
+      <div className="flex items-center gap-3 px-2">
+        <button
+          type="button"
+          onClick={togglePlay}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500 text-white cursor-pointer hover:opacity-90 transition-opacity flex-shrink-0"
+        >
+          {playing ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
+        <div className="flex-1">
+          <div className="w-full bg-white/10 rounded-full h-1.5">
+            <div className="h-full rounded-full bg-indigo-500 transition-all duration-1000" style={{ width: `${progress * 100}%` }} />
+          </div>
+        </div>
+        <span className="text-[13px] font-semibold text-muted tabular-nums whitespace-nowrap">{String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}</span>
       </div>
-      <div className="w-full bg-border rounded-full h-1">
-        <div className="h-full rounded-full bg-indigo-500 transition-all duration-1000" style={{ width: `${progress * 100}%` }} />
-      </div>
+
+      {/* Heartbeat animation when playing */}
+      {playing && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.15, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="absolute inset-0 bg-indigo-500 pointer-events-none"
+        />
+      )}
     </motion.div>
   );
 }
@@ -538,45 +657,122 @@ function ArticleLibrary({ articles }: { articles: WellnessArticle[] }) {
 }
 
 // ========== REMINDER SCHEDULER ==========
-function ReminderScheduler({ reminders, onAdd, onToggle, onRemove, onRename }: {
+const EMOJI_OPTIONS = ["💧", "💊", "🤸", "😴", "🔔", "🧘", "📖", "🍎", "🏃", "🌙", "💪", "🧠", "☕", "🥗", "🎵", "✨", "🌸", "🔥"];
+
+function ReminderScheduler({ reminders, onAdd, onToggle, onRemove, onRename, onUpdate }: {
   reminders: SelfCareReminder[];
   onAdd: () => void;
   onToggle: (id: string) => void;
   onRemove: (id: string) => void;
   onRename: (id: string, title: string) => void;
+  onUpdate: (id: string, updates: Partial<SelfCareReminder>) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [pickerId, setPickerId] = useState<string | null>(null);
+  const today = new Date().getDay();
+
+  const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  const toggleDay = (id: string, day: number) => {
+    const r = reminders.find((x) => x.id === id);
+    if (!r) return;
+    const days = r.days.includes(day)
+      ? r.days.filter((d) => d !== day)
+      : [...r.days, day].sort();
+    onUpdate(id, { days });
+  };
+
   return (
     <div className="space-y-2.5">
       {reminders.length === 0 && <p className="text-[13px] text-muted text-center py-3">No reminders set yet.</p>}
       {reminders.map((r) => (
-        <div key={r.id} className="flex items-center justify-between rounded-btn bg-card-hover px-4 py-3">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <span className="text-[18px]">{r.type === "hydration" ? "💧" : r.type === "medication" ? "💊" : r.type === "stretch" ? "🤸" : r.type === "rest" ? "😴" : "📌"}</span>
-            <div className="min-w-0 flex-1">
-              {editingId === r.id ? (
-                <input
-                  autoFocus
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={() => { onRename(r.id, editValue); setEditingId(null); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") { onRename(r.id, editValue); setEditingId(null); } }}
-                  className="w-full rounded border border-border bg-card px-2 py-1 text-[13px] font-semibold text-text outline-none focus:border-primary"
-                />
-              ) : (
-                <p className="text-[13px] font-semibold text-text cursor-pointer hover:text-primary" onClick={() => { setEditingId(r.id); setEditValue(r.title); }}>{r.title}</p>
+        <div key={r.id} className="rounded-btn bg-card-hover px-4 py-3 space-y-2">
+          {/* Row 1: emoji + title + toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {/* Editable emoji */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPickerId(pickerId === r.id ? null : r.id)}
+                  className="text-[20px] cursor-pointer hover:scale-110 transition-transform"
+                >
+                  {r.emoji}
+                </button>
+                {pickerId === r.id && (
+                  <div className="absolute bottom-full left-0 mb-2 z-10 w-[216px] rounded-card bg-card shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-border p-2.5">
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {EMOJI_OPTIONS.map((em) => (
+                        <button
+                          key={em}
+                          type="button"
+                          onClick={() => { onUpdate(r.id, { emoji: em }); setPickerId(null); }}
+                          className={`flex h-8 w-8 items-center justify-center rounded-lg text-[16px] cursor-pointer hover:bg-primary/15 transition-colors ${r.emoji === em ? "bg-primary/20 ring-1 ring-primary" : ""}`}
+                        >
+                          {em}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Editable title */}
+              <div className="min-w-0 flex-1">
+                {editingId === r.id ? (
+                  <input
+                    autoFocus
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => { onRename(r.id, editValue); setEditingId(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { onRename(r.id, editValue); setEditingId(null); } }}
+                    className="w-full rounded border border-border bg-card px-2 py-1 text-[13px] font-semibold text-text outline-none focus:border-primary"
+                  />
+                ) : (
+                  <p className="text-[13px] font-semibold text-text cursor-pointer hover:text-primary" onClick={() => { setEditingId(r.id); setEditValue(r.title); }}>{r.title}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 ml-2">
+              <button type="button" onClick={() => onToggle(r.id)}
+                className={`toggle-track ${r.enabled ? "active" : ""}`}
+              ><div className="toggle-thumb" /></button>
+              {reminders.length > 1 && (
+                <button type="button" onClick={() => onRemove(r.id)} className="text-[16px] text-muted cursor-pointer hover:text-danger">✕</button>
               )}
-              <p className="text-[11px] text-muted">{r.time} · {r.days.map((d) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]).join(", ")}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => onToggle(r.id)}
-              className={`toggle-track ${r.enabled ? "active" : ""}`}
-            ><div className="toggle-thumb" /></button>
-            {reminders.length > 1 && (
-              <button type="button" onClick={() => onRemove(r.id)} className="text-[16px] text-muted cursor-pointer hover:text-danger">✕</button>
-            )}
+
+          {/* Row 2: time picker */}
+          <div className="flex items-center gap-3">
+            <label className="text-[11px] font-medium text-muted w-8">Time</label>
+            <input
+              type="time"
+              value={r.time}
+              onChange={(e) => onUpdate(r.id, { time: e.target.value })}
+              className="rounded border border-border bg-card px-2 py-1 text-[13px] text-text outline-none focus:border-primary"
+            />
+          </div>
+
+          {/* Row 3: day toggles */}
+          <div className="flex items-center gap-3">
+            <label className="text-[11px] font-medium text-muted w-8">Days</label>
+            <div className="flex gap-1">
+              {DAY_LABELS.map((label, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => toggleDay(r.id, i)}
+                  className={`h-7 w-7 rounded-full text-[10px] font-semibold cursor-pointer transition-colors ${
+                    r.days.includes(i)
+                      ? "bg-primary text-white"
+                      : "bg-card text-muted border border-border"
+                  } ${i === today ? "ring-1 ring-primary ring-offset-1 ring-offset-card-hover" : ""}`}
+                >
+                  {label[0]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ))}
@@ -1003,13 +1199,24 @@ export function Selfcare() {
   const [logValue, setLogValue] = useState<number>(3);
   const [logNotes, setLogNotes] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const [reminders, setReminders] = useState<SelfCareReminder[]>([
-    { id: "r1", type: "hydration", title: "Drink water", time: "09:00", days: [0,1,2,3,4,5,6], enabled: true },
-    { id: "r2", type: "stretch", title: "Stretch break", time: "14:00", days: [0,1,2,3,4,5], enabled: false },
-  ]);
+  const [reminders, setReminders] = useState<SelfCareReminder[]>(() => {
+    try {
+      const saved = localStorage.getItem("atnasya-reminders");
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return [
+      { id: "r1", type: "hydration", title: "Drink water", time: "09:00", emoji: "💧", days: [0,1,2,3,4,5,6], enabled: true },
+      { id: "r2", type: "stretch", title: "Stretch break", time: "14:00", emoji: "🤸", days: [0,1,2,3,4,5], enabled: false },
+    ];
+  });
   const [videoPhaseFilter, setVideoPhaseFilter] = useState<string>("all");
   const [showAllVideos, setShowAllVideos] = useState(false);
   const [activeSoundscape, setActiveSoundscape] = useState<string | null>(null);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unavailable">(
+    typeof Notification !== "undefined" ? Notification.permission : "unavailable"
+  );
+  const [dailyScheduleOn, setDailyScheduleOn] = useState(() => localStorage.getItem("atnasya-daily-schedule") !== "off");
+  const firedToday = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     fetchSelfcare();
@@ -1059,11 +1266,16 @@ export function Selfcare() {
       type: "custom",
       title: "New reminder",
       time: "12:00",
+      emoji: "🔔",
       days: [0,1,2,3,4,5,6],
       enabled: true,
     };
     setReminders((prev) => [...prev, newReminder]);
     showToast("Reminder added");
+  };
+
+  const handleUpdateReminder = (id: string, updates: Partial<SelfCareReminder>) => {
+    setReminders((prev) => prev.map((r) => r.id === id ? { ...r, ...updates } : r));
   };
 
   const handleToggleReminder = (id: string) => {
@@ -1076,6 +1288,93 @@ export function Selfcare() {
 
   const handleRenameReminder = (id: string, title: string) => {
     setReminders((prev) => prev.map((r) => r.id === id ? { ...r, title } : r));
+  };
+
+  // Daily preset schedule — fires once per day at each slot
+  const DAILY_SCHEDULE = [
+    { id: "morning", time: "08:00", emoji: "🌅", title: "🌅 Morning affirmation", getBody: () => getDailyAffirmation() },
+    { id: "midday",   time: "12:00", emoji: "💡", title: "💡 Midday wellness tip", getBody: () => getPhaseTip(currentPhase)?.tip ?? "Take a moment to breathe and reset." },
+    { id: "meditation", time: "16:00", emoji: "🧘", title: "🧘 Meditation time", getBody: () => {
+      const m = MEDITATIONS[Math.floor(Math.random() * MEDITATIONS.length)];
+      return `${m.title} — ${m.duration} min ${m.description}`;
+    }},
+    { id: "yoga", time: "18:00", emoji: "🤸", title: "🤸 Yoga break", getBody: () => {
+      const y = YOGA_ROUTINES[Math.floor(Math.random() * YOGA_ROUTINES.length)];
+      return `${y.title} — ${y.duration} min, ${y.poses.length} poses`;
+    }},
+  ];
+
+  // Persist reminders and daily schedule toggle
+  useEffect(() => {
+    localStorage.setItem("atnasya-reminders", JSON.stringify(reminders));
+  }, [reminders]);
+
+  useEffect(() => {
+    localStorage.setItem("atnasya-daily-schedule", dailyScheduleOn ? "on" : "off");
+  }, [dailyScheduleOn]);
+
+  // Reset fired-today tracker when the date changes
+  useEffect(() => {
+    const checkDate = () => {
+      firedToday.current = new Set();
+    };
+    // Check every minute if the date rolled over
+    const dateInterval = setInterval(checkDate, 60000);
+    return () => clearInterval(dateInterval);
+  }, []);
+
+  // Notification checker — runs every 30s:
+  //  1. Fires browser notifications for enabled custom reminders at their scheduled time
+  //  2. Fires once-per-day preset schedule notifications
+  useEffect(() => {
+    if (typeof Notification === "undefined") return;
+    setNotifPermission(Notification.permission);
+    if (Notification.permission === "denied") return;
+    if (Notification.permission === "default") Notification.requestPermission().then((p) => setNotifPermission(p));
+
+    const check = () => {
+      const now = new Date();
+      const currentMin = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+      const today = now.getDay();
+
+      // 1. Custom reminders
+      for (const r of reminders) {
+        if (!r.enabled || !r.days.includes(today) || r.time !== currentMin) continue;
+        if (Notification.permission === "granted") {
+          new Notification("Atnasya Reminder", {
+            body: r.emoji + " " + r.title,
+            icon: "/icons/icon.svg",
+            tag: r.id,
+          });
+        }
+      }
+
+      // 2. Daily preset schedule
+      if (dailyScheduleOn) {
+        for (const slot of DAILY_SCHEDULE) {
+          if (slot.time !== currentMin) continue;
+          if (firedToday.current.has(slot.id)) continue;
+          firedToday.current.add(slot.id);
+          if (Notification.permission === "granted") {
+            new Notification(slot.title, {
+              body: slot.getBody(),
+              icon: "/icons/icon.svg",
+              tag: "schedule-" + slot.id,
+            });
+          }
+        }
+      }
+    };
+
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, [reminders, dailyScheduleOn, currentPhase]);
+
+  const handleRequestNotification = async () => {
+    if (typeof Notification === "undefined") return;
+    const p = await Notification.requestPermission();
+    setNotifPermission(p);
   };
 
   const tip = getPhaseTip(currentPhase);
@@ -1346,7 +1645,12 @@ export function Selfcare() {
         {/* ======= MEDITATION ======= */}
         {tab === "meditation" && (
           <div className="space-y-3">
-            <SectionHeader emoji="🧘" title="Meditation library" subtitle="Phase-specific and general sessions" />
+            <LibraryHeader
+              image="/illustrations/meditations/meditation-hero.jpg"
+              fallbackIcon={<MeditationIcon className="h-10 w-10 text-indigo-500" />}
+              title="Meditation library"
+              subtitle="Phase-specific and general sessions"
+            />
             <div className="grid grid-cols-2 gap-2.5">
               {MEDITATIONS.map((m) => (
                 <MeditationCard key={m.id} item={m} onStart={handleMeditationStart} />
@@ -1418,7 +1722,12 @@ export function Selfcare() {
             </div>
 
             {/* Pose-by-pose routines */}
-            <SectionHeader emoji="🧘" title="Pose routines" subtitle="Follow along step by step" />
+            <LibraryHeader
+              image="/illustrations/yoga/yoga-hero.jpg"
+              fallbackIcon={<YogaIcon className="h-10 w-10 text-indigo-500" />}
+              title="Pose routines"
+              subtitle="Follow along step by step"
+            />
             <div className="space-y-2.5">
               {YOGA_ROUTINES.map((y) => (
                 <YogaCard key={y.id} routine={y} onStart={handleYogaStart} />
@@ -1455,12 +1764,59 @@ export function Selfcare() {
         {tab === "reminders" && (
           <div className="space-y-3">
             <SectionHeader emoji="⏰" title="Custom reminders" subtitle="Hydration, meds, stretch breaks" />
+            {/* Notification permission status */}
+            <div className="flex items-center justify-between rounded-btn bg-card-hover px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[16px]">🔔</span>
+                <div>
+                  <p className="text-[12px] font-semibold text-text">Browser notifications</p>
+                  <p className="text-[10px] text-muted">
+                    {notifPermission === "granted" && "✅ Enabled — reminders will notify you"}
+                    {notifPermission === "denied" && "❌ Blocked — allow notifications in browser settings"}
+                    {notifPermission === "default" && "⏸️ Not requested yet"}
+                    {notifPermission === "unavailable" && "⚠️ Not supported on this browser"}
+                  </p>
+                </div>
+              </div>
+              {notifPermission === "default" && (
+                <button
+                  type="button"
+                  onClick={handleRequestNotification}
+                  className="rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-white cursor-pointer hover:opacity-90"
+                >
+                  Enable
+                </button>
+              )}
+              {notifPermission === "denied" && (
+                <span className="text-[10px] text-muted italic">Settings</span>
+              )}
+            </div>
+            {/* Daily schedule toggle */}
+            <div className="flex items-center justify-between rounded-btn bg-card-hover px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[16px]">📅</span>
+                <div>
+                  <p className="text-[12px] font-semibold text-text">Daily wellness schedule</p>
+                  <p className="text-[10px] text-muted">
+                    {dailyScheduleOn
+                      ? "🌅 8AM · 💡 12PM · 🧘 4PM · 🤸 6PM"
+                      : "Turn on for daily affirmations, tips, & reminders"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDailyScheduleOn((p) => !p)}
+                className={`toggle-track ${dailyScheduleOn ? "active" : ""}`}
+              ><div className="toggle-thumb" /></button>
+            </div>
             <ReminderScheduler
               reminders={reminders}
               onAdd={handleAddReminder}
               onToggle={handleToggleReminder}
               onRemove={handleRemoveReminder}
               onRename={handleRenameReminder}
+              onUpdate={handleUpdateReminder}
             />
           </div>
         )}

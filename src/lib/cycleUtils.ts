@@ -194,10 +194,13 @@ export function phaseColor(phase: CyclePhase): string {
 
 /**
  * Build a full-year phase map for calendar coloring.
- * Uses logged cycles for actual period days, then predicts forward 6 months.
- * Returns a phaseMap (date → phase) and loggedDates set (confirmed days).
- *
- * Falls back to avgCycleLength/avgPeriodDuration when < 2 cycles logged.
+ * Uses date-keyed entries: logged period days always overwrite predictions.
+ * Only predicts ONE cycle ahead from the last confirmed period start.
+ * No additive stacking because:
+ *   - Every date has exactly one entry in the map
+ *   - Logged period days are written first
+ *   - Phases between logged cycles are derived from actual dates
+ *   - Only ONE future cycle is predicted (not 6 months of overlapping windows)
  */
 export function getFullYearPhaseMap(
   cycles: CycleInput[],
@@ -210,12 +213,20 @@ export function getFullYearPhaseMap(
   const L = avgCycleLength > 0 ? avgCycleLength : 28;
   const P = avgPeriodDuration > 0 ? avgPeriodDuration : 5;
 
-  // 1. Mark actual period days from logged cycles
-  for (const cycle of cycles) {
+  // Sort cycles chronologically (oldest first)
+  const sorted = [...cycles].sort(
+    (a, b) => toTime(a.periodStart) - toTime(b.periodStart)
+  );
+
+  // ── 1. Process each logged cycle ──
+  for (let i = 0; i < sorted.length; i++) {
+    const cycle = sorted[i];
     const start = new Date(cycle.periodStart);
     const end = cycle.periodEnd
       ? new Date(cycle.periodEnd)
       : new Date(start.getTime() + (P - 1) * MS_PER_DAY);
+
+    // 1a. Write actual period days (logged — always wins)
     const d = new Date(start);
     while (d <= end) {
       const iso = d.toISOString().slice(0, 10);
@@ -223,46 +234,139 @@ export function getFullYearPhaseMap(
       loggedDates.add(iso);
       d.setDate(d.getDate() + 1);
     }
-  }
 
-  // 2. Find the last period start (logged or predicted)
-  let lastStart: Date;
-  if (cycles.length > 0) {
-    const sorted = [...cycles].sort(
-      (a, b) => toTime(b.periodStart) - toTime(a.periodStart)
-    );
-    lastStart = new Date(sorted[0].periodStart);
-  } else {
-    lastStart = new Date();
-    lastStart.setDate(lastStart.getDate() - (P - 1));
-  }
+    // 1b. Derive phases between this cycle and the next logged cycle
+    //     using the ACTUAL dates (not an average).
+    const nextStart =
+      i < sorted.length - 1
+        ? new Date(sorted[i + 1].periodStart)
+        : null;
 
-  // 3. Predict forward 6 months from last period start
-  const sixMonthsMs = 180 * MS_PER_DAY;
-  const endDate = new Date(Math.max(Date.now(), lastStart.getTime()) + sixMonthsMs);
+    if (nextStart) {
+      const actualCycleLength = Math.round(
+        (nextStart.getTime() - start.getTime()) / MS_PER_DAY
+      );
+      // Ovulation ≈ cycleLength - 14 (luteal phase is relatively fixed)
+      const O = Math.max(1, actualCycleLength - 14);
 
-  let cycleStart = new Date(lastStart);
-  // If lastStart is in the past, advance to the next future cycle start
-  while (cycleStart.getTime() < Date.now() - L * MS_PER_DAY) {
-    cycleStart = new Date(cycleStart.getTime() + L * MS_PER_DAY);
-  }
+      for (let day = 1; day <= actualCycleLength; day++) {
+        const date = new Date(start.getTime() + (day - 1) * MS_PER_DAY);
+        const iso = date.toISOString().slice(0, 10);
+        // Skip dates that are already logged period days
+        if (loggedDates.has(iso)) continue;
 
-  while (cycleStart <= endDate) {
-    // For each day in this cycle, compute its phase
-    for (let day = 1; day <= L; day++) {
-      const date = new Date(cycleStart.getTime() + (day - 1) * MS_PER_DAY);
-      const iso = date.toISOString().slice(0, 10);
+        let phase: CyclePhase;
+        if (day <= P) continue; // already logged
+        else if (day >= O - 3 && day <= O + 1) {
+          phase = day === O ? "ovulation" : "fertile";
+        } else if (day > O + 1) {
+          phase = "luteal";
+        } else {
+          phase = "follicular";
+        }
+        // Only set if not already set (first write wins within a cycle)
+        if (!phaseMap.has(iso)) {
+          phaseMap.set(iso, phase);
+        }
+      }
+    } else {
+      // No next cycle yet — fill phases for the current cycle out to cycleLen
+      // using the user's average cycle length (L) as the expected duration.
+      const O = Math.max(1, L - 14);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-      // Skip if already marked as logged period
-      if (loggedDates.has(iso)) continue;
+      for (let day = 1; day <= L; day++) {
+        const date = new Date(start.getTime() + (day - 1) * MS_PER_DAY);
+        const iso = date.toISOString().slice(0, 10);
+        if (loggedDates.has(iso)) continue;
 
-      const det = getPhaseDetails(day, P, L);
-      // Only overwrite if not already set (logged takes priority)
-      if (!phaseMap.has(iso)) {
-        phaseMap.set(iso, det.phase);
+        let phase: CyclePhase;
+        if (day <= P) continue;
+        else if (day >= O - 3 && day <= O + 1) {
+          phase = day === O ? "ovulation" : "fertile";
+        } else if (day > O + 1) {
+          phase = "luteal";
+        } else {
+          phase = "follicular";
+        }
+        // Show all future dates + a few past days to fill visible calendar
+        if (date >= new Date(today.getTime() - 60 * MS_PER_DAY)) {
+          if (!phaseMap.has(iso)) {
+            phaseMap.set(iso, phase);
+          }
+        }
       }
     }
-    cycleStart = new Date(cycleStart.getTime() + L * MS_PER_DAY);
+  }
+
+  // ── 2. After last logged cycle, predict ONE cycle forward ──
+  if (sorted.length > 0) {
+    const last = sorted[sorted.length - 1];
+    const lastStart = new Date(last.periodStart);
+
+    // Use actual cycle length from last two cycles, or fall back to average
+    let cycleLen = L;
+    if (sorted.length >= 2) {
+      const prev = sorted[sorted.length - 2];
+      cycleLen = Math.round(
+        (lastStart.getTime() - new Date(prev.periodStart).getTime()) / MS_PER_DAY
+      );
+      cycleLen = Math.min(45, Math.max(21, cycleLen));
+    }
+
+    const predictedStart = new Date(lastStart.getTime() + cycleLen * MS_PER_DAY);
+    const O = Math.max(1, cycleLen - 14);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let day = 1; day <= cycleLen; day++) {
+      const date = new Date(predictedStart.getTime() + (day - 1) * MS_PER_DAY);
+      const iso = date.toISOString().slice(0, 10);
+
+      // Only show predicted phases for future dates
+      if (date < today) continue;
+      if (loggedDates.has(iso)) continue;
+
+      let phase: CyclePhase;
+      if (day <= P) {
+        phase = "menstrual";
+      } else if (day >= O - 3 && day <= O + 1) {
+        phase = day === O ? "ovulation" : "fertile";
+      } else if (day > O + 1) {
+        phase = "luteal";
+      } else {
+        phase = "follicular";
+      }
+      if (!phaseMap.has(iso)) {
+        phaseMap.set(iso, phase);
+      }
+    }
+  }
+
+  // ── 3. No logged cycles — use onboarding defaults for a basic guess ──
+  if (sorted.length === 0) {
+    const start = new Date();
+    start.setDate(start.getDate() - (P - 1));
+    const O = Math.max(1, L - 14);
+
+    for (let day = 1; day <= L; day++) {
+      const date = new Date(start.getTime() + (day - 1) * MS_PER_DAY);
+      const iso = date.toISOString().slice(0, 10);
+
+      let phase: CyclePhase;
+      if (day <= P) {
+        phase = "menstrual";
+        loggedDates.add(iso);
+      } else if (day >= O - 3 && day <= O + 1) {
+        phase = day === O ? "ovulation" : "fertile";
+      } else if (day > O + 1) {
+        phase = "luteal";
+      } else {
+        phase = "follicular";
+      }
+      phaseMap.set(iso, phase);
+    }
   }
 
   return { phaseMap, loggedDates };

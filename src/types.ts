@@ -257,6 +257,7 @@ export interface Meditation {
   phase: CyclePhase | "pregnancy" | "postpartum" | "any";
   description: string;
   color: string;
+  image?: string;
 }
 
 export interface YogaRoutine {
@@ -267,6 +268,7 @@ export interface YogaRoutine {
   description: string;
   poses: string[];
   color: string;
+  image?: string;
 }
 
 export interface SleepStory {
@@ -276,6 +278,7 @@ export interface SleepStory {
   narrator: string;
   theme: string;
   description: string;
+  videoUrl?: string;
 }
 
 export interface NutritionSuggestion {
@@ -300,6 +303,7 @@ export interface SelfCareReminder {
   type: "hydration" | "medication" | "stretch" | "rest" | "custom";
   title: string;
   time: string;
+  emoji: string;
   days: number[];
   enabled: boolean;
   phaseSpecific?: CyclePhase;
@@ -371,10 +375,14 @@ export interface PredictionAccuracy {
 // ========== PROFILE FEATURES ==========
 export type TrackingMode = "cycle" | "pregnancy" | "postpartum";
 export type AppLanguage = "en" | "es" | "fr" | "ar";
+export type ColorPalette = "default" | "blush" | "lavender" | "ocean" | "sage" | "monochrome";
+export type PetIcon = "none" | "cat1" | "cat2" | "cat3" | "cat4" | "cat5" | "cat6" | "cat7" | "cat8" | "puppy1" | "puppy2" | "puppy3" | "puppy4" | "puppy5" | "puppy6" | "puppy7" | "puppy8" | "puppy9" | "animal1" | "animal2" | "animal3" | "animal4" | "animal5" | "animal6" | "animal7" | "animal8" | "animal9";
 
 export interface AppPreferences {
   units: "metric" | "imperial";
   theme: "light" | "dark";
+  palette: ColorPalette;
+  pet: PetIcon;
   language: AppLanguage;
   biometricLock: boolean;
   dataEncryption: boolean;

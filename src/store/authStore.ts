@@ -6,6 +6,8 @@ import type {
   UserProfile,
   OnboardingGoal,
   NotificationPrefs,
+  ColorPalette,
+  PetIcon,
 } from "../types";
 
 interface AuthState {
@@ -13,6 +15,9 @@ interface AuthState {
   profile: UserProfile | null;
   loading: boolean;
   theme: "light" | "dark";
+  palette: ColorPalette;
+  pet: PetIcon;
+  favicon?: string;
   anonymousMode: boolean;
   // Onboarding state
   onboardingCompleted: boolean;
@@ -31,6 +36,9 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
   toggleTheme: () => void;
   setTheme: (theme: "light" | "dark") => void;
+  setPalette: (palette: ColorPalette) => void;
+  setPet: (pet: PetIcon) => void;
+  setFavicon: (favicon: string) => void;
   toggleAnonymousMode: () => void;
   setOnboarding: (partial: Partial<{
     onboardingCompleted: boolean;
@@ -61,8 +69,10 @@ export const useAuthStore = create<AuthState>()(
         window.matchMedia("(prefers-color-scheme: dark)").matches
           ? "dark"
           : "light",
+      palette: "default",
+      pet: "none",
+      favicon: "1",
       anonymousMode: false,
-      // Onboarding defaults
       onboardingCompleted: false,
       role: "tracker",
       goal: "track",
@@ -90,6 +100,9 @@ export const useAuthStore = create<AuthState>()(
         applyTheme(theme);
         set({ theme });
       },
+      setPalette: (palette) => set({ palette }),
+      setPet: (pet: PetIcon) => set({ pet }),
+      setFavicon: (favicon: string) => set({ favicon }),
       toggleAnonymousMode: () =>
         set((s) => ({ anonymousMode: !s.anonymousMode })),
       setOnboarding: (partial) =>
@@ -125,6 +138,9 @@ export const useAuthStore = create<AuthState>()(
       name: "atnasya-auth",
       partialize: (state) => ({
         theme: state.theme,
+        palette: state.palette,
+        pet: state.pet,
+        favicon: state.favicon,
         anonymousMode: state.anonymousMode,
         onboardingCompleted: state.onboardingCompleted,
         role: state.role,
