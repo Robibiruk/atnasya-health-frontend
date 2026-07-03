@@ -1,0 +1,240 @@
+/* Atnasya Health — global design system.
+   Flo-inspired. Soft organic glassmorphism + warm minimalism.
+   All colors via CSS variables — zero hardcoded hex in components.
+   A gift from Robel to Atnasya. */
+
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap");
+
+/* ─── Design tokens ─── */
+:root {
+  /* Brand */
+  --color-primary: #7B4F9E;
+  --color-primary-light: #A67DC5;
+  --color-accent: #E879A0;
+  --color-accent-light: #F4A7C0;
+
+  /* Backgrounds */
+  --color-bg: #FAFAFA;
+  --color-card: #FFFFFF;
+  --color-card-hover: #F5F0FB;
+
+  /* Text */
+  --color-text: #1A1A2E;
+  --color-muted: #6B7280;
+  --color-subtle: #9CA3AF;
+
+  /* Cycle phases */
+  --color-period: #E879A0;
+  --color-fertile: #10B981;
+  --color-ovulation: #7B4F9E;
+  --color-pms: #F59E0B;
+  --color-follicular: #60A5FA;
+
+  /* Status */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+
+  /* Borders & shadows */
+  --color-border: #E5E7EB;
+  --shadow-card: 0 2px 12px rgba(123, 79, 158, 0.08);
+  --radius-card: 20px;
+  --radius-btn: 14px;
+}
+
+[data-theme="dark"] {
+  --color-primary: #C084FC;
+  --color-primary-light: #A855F7;
+  --color-accent: #F472B6;
+  --color-accent-light: #EC4899;
+  --color-bg: #09071A;
+  --color-card: #13102A;
+  --color-card-hover: #1E1838;
+  --color-text: #F0E8FF;
+  --color-muted: #9B8FBB;
+  --color-subtle: #6B5F8A;
+  --color-border: #2A2048;
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.5);
+}
+
+/* ─── Base reset ─── */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  line-height: 1.65;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+body {
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+  overflow-x: hidden;
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--color-bg);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.06);
+}
+
+@media (min-width: 768px) {
+  body {
+    max-width: 640px;
+  }
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* ─── Keyframes (animation master list) ─── */
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes screenIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes screenOut {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes pulsering {
+  0% { box-shadow: 0 0 0 0 rgba(123,79,158,0.5); }
+  70% { box-shadow: 0 0 0 14px rgba(123,79,158,0); }
+  100% { box-shadow: 0 0 0 0 rgba(123,79,158,0); }
+}
+@keyframes dayPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes tapBounce {
+  0% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+@keyframes drawArc {
+  0% { stroke-dashoffset: var(--arc-length); }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes sheetUp {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+@keyframes lineTrace {
+  0% { stroke-dashoffset: var(--line-length); }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes dayReveal {
+  0% { opacity: 0; transform: scale(0.6) translateY(6px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes shake {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+
+/* ─── Reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Scrollbar hiding ─── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Drag container for carousels ─── */
+.drag-container {
+  touch-action: pan-y;
+  user-select: none;
+}
+
+/* ─── Phase color helpers ─── */
+.phase-menstrual { color: var(--color-period); }
+.phase-follicular { color: var(--color-follicular); }
+.phase-fertile { color: var(--color-fertile); }
+.phase-ovulation { color: var(--color-ovulation); }
+.phase-luteal { color: var(--color-pms); }
+
+.bg-phase-period { background-color: var(--color-period); }
+.bg-phase-fertile { background-color: var(--color-fertile); }
+.bg-phase-ovulation { background-color: var(--color-ovulation); }
+.bg-phase-pms { background-color: var(--color-pms); }
+.bg-phase-follicular { background-color: var(--color-follicular); }
+
+/* Tinted backgrounds (20% opacity) */
+.bg-period-tint { background-color: color-mix(in srgb, var(--color-period) 20%, var(--color-card)); }
+.bg-fertile-tint { background-color: color-mix(in srgb, var(--color-fertile) 20%, var(--color-card)); }
+.bg-ovulation-tint { background-color: color-mix(in srgb, var(--color-ovulation) 20%, var(--color-card)); }
+.bg-pms-tint { background-color: color-mix(in srgb, var(--color-pms) 20%, var(--color-card)); }
+.bg-follicular-tint { background-color: color-mix(in srgb, var(--color-follicular) 20%, var(--color-card)); }
+
+/* ─── Focus rings ─── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ─── Custom Toggle Switch ─── */
+.toggle-track {
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  background-color: var(--color-border);
+  transition: background-color 250ms ease;
+  position: relative;
+  cursor: pointer;
+}
+.toggle-track.active {
+  background-color: var(--color-primary);
+}
+.toggle-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 250ms ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.toggle-track.active .toggle-thumb {
+  transform: translateX(22px);
+}
+
+/* ─── Dark stage (calendar panel) ─── */
+.dark-stage {
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+

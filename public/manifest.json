@@ -1,0 +1,19 @@
+{
+  "name": "Atnasya Health",
+  "short_name": "Atnasya",
+  "description": "Your private, personal women's health companion.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F0B16",
+  "theme_color": "#7B4F9E",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
