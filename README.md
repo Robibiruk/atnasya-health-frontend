@@ -4,6 +4,8 @@
 
 [Live Demo](#) • [Report Bug](#) • [Request Feature](#)
 
+![Atnasya App Screenshot](https://plain-eeur-prod-public.komododecks.com/202607/03/dxuGmjmWIsfAyauaknYl/image.jpg)
+
 ![React](https://img.shields.io/badge/React-20232A?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-blue?logo=typescript)
 ![Tailwind](https://img.shields.io/badge/Tailwind-38BDF8?logo=tailwind-css)
