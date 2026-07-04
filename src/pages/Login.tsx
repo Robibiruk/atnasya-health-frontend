@@ -26,8 +26,8 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Google sign-in only works on localhost (Firebase restriction)
-  const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  // Removed localhost-only restriction so Google sign-in can work on deployed domains.
+  // If Google sign-in fails on production, add the Netlify domain in Firebase Auth authorized domains.
 
   if (user) return <Navigate to="/" replace />;
 
@@ -54,11 +54,6 @@ export function Login() {
   };
 
   const handleGoogle = async () => {
-    // Google sign-in requires localhost — Firebase blocks LAN IPs
-    if (!isLocalhost) {
-      setError("Google sign-in needs localhost. Use email sign-in or open http://localhost:5173");
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -69,10 +64,10 @@ export function Login() {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("Cross-Origin") || msg.includes("popup") || msg.includes("channel")) {
         setError("Popup blocked — allow popups for this site and try again");
+      } else if (msg.includes("unauthorized-domain")) {
+        setError("Google sign-in is not allowed from this domain yet. Please use email sign-in or try again later.");
       } else {
-        setError(msg.includes("unauthorized-domain")
-          ? "Google sign-in needs localhost. Use email or open http://localhost:5173"
-          : "Google sign-in failed");
+        setError("Google sign-in failed");
       }
     } finally {
       setLoading(false);
