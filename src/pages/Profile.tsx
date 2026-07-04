@@ -226,7 +226,11 @@ export function Profile() {
     if (!feedbackText.trim()) return;
     setSubmittingFeedback(true);
     try {
-      await api.post("/feedback", { text: feedbackText, category: "app" });
+      await fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "text/plain" },
+        body: `form-name=feedback&text=${encodeURIComponent(feedbackText)}&category=app`,
+      });
       showToast("Thanks for your feedback! ❤️");
       setFeedbackText("");
       setShowFeedback(false);
