@@ -33,11 +33,11 @@ export function Login() {
 
   const registerBackend = async (firebaseUser: { uid: string; displayName?: string | null; email?: string | null }, fullName?: string) => {
     try {
-      // Get the Firebase ID token to send to the backend
       const currentUser = auth.currentUser;
       if (!currentUser) return;
       const token = await getIdToken(currentUser);
-      await api.post("/auth/register", { name: fullName, email: firebaseUser.email, token });
+      const displayName = fullName || firebaseUser.displayName || firebaseUser.email?.split("@")[0];
+      await api.post("/auth/register", { name: displayName || undefined, email: firebaseUser.email, token });
       const me = await api.get("/auth/me");
       if (me?.data?.success) {
         useAuthStore.getState().setProfile(me.data.data);

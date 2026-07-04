@@ -1255,9 +1255,6 @@ export function Selfcare() {
   const [videoPhaseFilter, setVideoPhaseFilter] = useState<string>("all");
   const [showAllVideos, setShowAllVideos] = useState(false);
   const [activeSoundscape, setActiveSoundscape] = useState<string | null>(null);
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unavailable">(
-    typeof Notification !== "undefined" ? Notification.permission : "unavailable"
-  );
   const [dailyScheduleOn, setDailyScheduleOn] = useState(() => localStorage.getItem("atnasya-daily-schedule") !== "off");
   const firedToday = useRef<Set<string>>(new Set());
 
@@ -1368,14 +1365,36 @@ export function Selfcare() {
     return () => clearInterval(dateInterval);
   }, []);
 
+  // Notification state — do NOT auto-ask on mount. Ask only when the user
+  // explicitly enables a notification-dependent feature or taps Enable.
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unavailable">(
+    typeof Notification !== "undefined" ? Notification.permission : "unavailable"
+  );
+  const [showNotifNudge, setShowNotifNudge] = useState(false);
+  const notifNudgeTimerRef = useRef<number | null>(null);
+
+  // Gentle, infrequent nudge to enable notifications after the user has been
+  // in the app for a bit and still hasn't granted permission.
+  useEffect(() => {
+    if (notifPermission !== "default") return;
+    const delay = 30000;
+    const timer = window.setTimeout(() => {
+      if (Notification.permission === "default") setShowNotifNudge(true);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [notifPermission]);
+
+  const hideNotifNudge = () => {
+    setShowNotifNudge(false);
+    if (notifNudgeTimerRef.current) window.clearTimeout(notifNudgeTimerRef.current);
+  };
+
   // Notification checker — runs every 30s:
   //  1. Fires browser notifications for enabled custom reminders at their scheduled time
   //  2. Fires once-per-day preset schedule notifications
   useEffect(() => {
     if (typeof Notification === "undefined") return;
-    setNotifPermission(Notification.permission);
     if (Notification.permission === "denied") return;
-    if (Notification.permission === "default") Notification.requestPermission().then((p) => setNotifPermission(p));
 
     const check = () => {
       const now = new Date();
@@ -1841,6 +1860,30 @@ export function Selfcare() {
                 <span className="text-[10px] text-muted italic">Settings</span>
               )}
             </div>
+            {showNotifNudge && (
+              <div className="rounded-btn bg-primary/10 border border-accent/20 px-4 py-3 flex items-start gap-3">
+                <span className="text-[16px]">🔔</span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-text">Turn on notifications?</p>
+                  <p className="text-[11px] text-muted">Get reminders even when Atnasya is in the background.</p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        hideNotifNudge();
+                        await handleRequestNotification();
+                      }}
+                      className="rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-white cursor-pointer hover:opacity-90"
+                    >Enable</button>
+                    <button
+                      type="button"
+                      onClick={hideNotifNudge}
+                      className="rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold text-muted cursor-pointer hover:bg-card-hover"
+                    >Later</button>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Daily schedule toggle */}
             <div className="flex items-center justify-between rounded-btn bg-card-hover px-4 py-2.5">
               <div className="flex items-center gap-2">

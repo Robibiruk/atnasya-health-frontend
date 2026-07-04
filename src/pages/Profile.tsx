@@ -123,6 +123,12 @@ export function Profile() {
   const [feedbackText, setFeedbackText] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [editingBirthYear, setEditingBirthYear] = useState(false);
+  const [birthYearValue, setBirthYearValue] = useState<number | "">("");
+  const setProfile = useAuthStore((s) => s.setProfile);
 
   const LANGUAGES: { code: AppLanguage; label: string; native: string }[] = [
     { code: "en", label: "English", native: "English" },
@@ -268,12 +274,89 @@ export function Profile() {
         {/* Avatar + name */}
         <div className="flex items-center gap-4">
           <PetAvatar />
-          <div className="min-w-0">
-            <h2 className="text-[20px] font-bold text-text truncate">{displayName}</h2>
-            <p className="text-[13px] text-muted">
-              {onboardingCompleted ? `${t("profile.tracking.mode")}: ${t("profile.tracking." + trackingMode)}` : t("profile.onboarding.prompt")}
-            </p>
-            {profile?.birthYear && <p className="text-[12px] text-muted">Born {profile.birthYear}</p>}
+          <div className="min-w-0 flex-1">
+            {editingName ? (
+              <div className="space-y-2">
+                <input
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full rounded-btn border border-border bg-card px-3 py-2 text-[15px] text-text outline-none focus:border-primary"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={savingName}
+                    onClick={async () => {
+                      if (!nameValue.trim()) return;
+                      setSavingName(true);
+                      await updateSetting("name", nameValue.trim());
+                      setProfile({ ...(profile as any), name: nameValue.trim() });
+                      setEditingName(false);
+                      setSavingName(false);
+                    }}
+                    className="rounded-btn bg-primary px-3 py-2 text-[12px] font-semibold text-white cursor-pointer disabled:opacity-50"
+                  >
+                    {savingName ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingName(false); setNameValue(displayName); }}
+                    className="rounded-btn border border-border px-3 py-2 text-[12px] font-semibold text-text cursor-pointer hover:bg-card-hover"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="text-[20px] font-bold text-text truncate">{displayName}</h2>
+                  <p className="text-[13px] text-muted">
+                    {onboardingCompleted ? `${t("profile.tracking.mode")}: ${t("profile.tracking." + trackingMode)}` : t("profile.onboarding.prompt")}
+                  </p>
+                  {profile?.birthYear && editingBirthYear ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <select
+                        value={birthYearValue === "" ? profile?.birthYear ?? new Date().getFullYear() - 25 : birthYearValue}
+                        onChange={(e) => setBirthYearValue(Number(e.target.value))}
+                        className="rounded-btn border border-border bg-card px-2 py-1 text-[12px] text-text outline-none focus:border-primary"
+                      >
+                        {Array.from({ length: 80 }, (_, i) => new Date().getFullYear() - 12 - i).map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await updateSetting("birthYear", birthYearValue === "" ? null : Number(birthYearValue));
+                          setEditingBirthYear(false);
+                        }}
+                        className="text-[12px] text-primary font-semibold cursor-pointer"
+                      >Save</button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingBirthYear(false)}
+                        className="text-[12px] text-muted cursor-pointer"
+                      >Cancel</button>
+                    </div>
+                  ) : profile?.birthYear ? (
+                    <button
+                      type="button"
+                      onClick={() => { setEditingBirthYear(true); setBirthYearValue(profile?.birthYear ?? ""); }}
+                      className="text-[12px] text-muted cursor-pointer underline"
+                    >Born {profile.birthYear}</button>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setEditingName(true); setNameValue(displayName || ""); }}
+                  className="text-[12px] text-primary font-semibold cursor-pointer flex-shrink-0"
+                >
+                  Edit
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -480,8 +563,17 @@ export function Profile() {
           {/* Notifications */}
           <button type="button" onClick={async () => {
             if (!("Notification" in window)) { showToast(t("notif.unsupported")); return; }
+            setProfile({
+              ...(profile as any),
+              settings: {
+                ...(profile?.settings ?? {}),
+                notifications: !(profile?.settings?.notifications ?? false),
+              },
+            });
+
             if (Notification.permission === "granted") {
-              await updateSetting("notifications", !profile?.settings?.notifications);
+              const next = !(profile?.settings?.notifications ?? false);
+              await updateSetting("notifications", next);
             } else if (Notification.permission === "denied") {
               showToast(t("notif.denied"));
             } else {

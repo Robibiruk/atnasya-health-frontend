@@ -26,17 +26,22 @@ export function StepBirthYear({ birthYear, onChange, onNext }: StepBirthYearProp
       </div>
 
       <div className="flex items-center justify-center">
-        <input
-          type="number"
+        <select
           value={year}
-          min={MIN_YEAR}
-          max={MAX_YEAR}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10);
-            if (!isNaN(v) && v >= MIN_YEAR && v <= MAX_YEAR) onChange(v);
-          }}
-          className="w-40 rounded-btn border border-border bg-card px-4 py-4 text-center text-[32px] font-bold text-primary outline-none focus:border-primary transition-colors duration-150 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-48 rounded-btn border border-border bg-card px-4 py-4 text-center text-[24px] font-bold
+                     text-text outline-none focus:border-primary transition-colors duration-150
+                     appearance-none cursor-pointer touch-manipulation"
+        >
+          {Array.from({ length: MAX_YEAR - MIN_YEAR + 1 }, (_, i) => {
+            const y = MAX_YEAR - i;
+            return (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            );
+          })}
+        </select>
       </div>
 
       <p className="text-center text-[13px] text-muted">

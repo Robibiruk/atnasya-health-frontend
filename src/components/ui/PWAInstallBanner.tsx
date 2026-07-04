@@ -1,9 +1,11 @@
 // PWAInstallBanner — full-screen install popup that appears immediately on load.
 // On Chrome: triggers the native beforeinstallprompt flow.
 // On iOS/other: shows a brief Add-to-Home-Screen hint inline.
+// Uses chosen pet favicon for install icon.
 // Remembers dismissal in localStorage so it only shows once.
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuthStore } from "../../store/authStore";
 
 function isIOS(): boolean {
   const ua = navigator.userAgent.toLowerCase();
@@ -11,9 +13,14 @@ function isIOS(): boolean {
   return /iphone|ipad|ipod/.test(ua) || (isSafari && navigator.maxTouchPoints > 0);
 }
 
+function buildManifestBlobIconHref(faviconValue: string | undefined): string {
+  return `/favicon/${faviconValue ?? "1"}.png`;
+}
+
 const STORAGE_KEY = "atnasya-pwa-dismissed";
 
 export function PWAInstallBanner() {
+  const favicon = useAuthStore((s) => s.favicon as string | undefined);
   const [show, setShow] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [installDone, setInstallDone] = useState(false);
@@ -37,25 +44,62 @@ export function PWAInstallBanner() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
+  const swapInstallIcon = () => {
+    try {
+      const iconHref = buildManifestBlobIconHref(favicon);
+      const appleIconEl = document.querySelector<HTMLLinkElement>('head link[rel="apple-touch-icon"]');
+      if (appleIconEl) appleIconEl.href = iconHref;
+      const manifestEl = document.querySelector<HTMLLinkElement>('head link[rel="manifest"]');
+      if (manifestEl && manifestEl.href.endsWith("/manifest.json")) {
+        const iconUrl = new URL(iconHref, window.location.origin).toString();
+        const manifest = {
+          name: "Atnasya Health",
+          short_name: "Atnasya",
+          icons: [{ src: iconUrl, sizes: "512x512", type: "image/png", purpose: "any maskable" }],
+        } as Record<string, unknown>;
+        const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+        manifestEl.href = URL.createObjectURL(blob);
+      }
+    } catch {
+      // non-fatal personalization failure
+    }
+  };
+
+  const restoreDefaultManifest = () => {
+    try {
+      const defaultHref = buildManifestBlobIconHref("1");
+      const appleIconEl = document.querySelector<HTMLLinkElement>('head link[rel="apple-touch-icon"]');
+      if (appleIconEl) appleIconEl.href = defaultHref;
+      const manifestEl = document.querySelector<HTMLLinkElement>('head link[rel="manifest"]');
+      if (manifestEl && manifestEl.href.startsWith("blob:")) {
+        manifestEl.href = "/manifest.json";
+      }
+    } catch {
+      // non-fatal restore
+    }
+  };
+
   const handleInstall = async () => {
     if (deferredPrompt) {
-      // Chrome native install
+      swapInstallIcon();
       deferredPrompt.prompt();
       const result = await deferredPrompt.userChoice;
       if (result.outcome === "accepted") {
         setInstallDone(true);
         localStorage.setItem(STORAGE_KEY, "true");
-        setTimeout(() => { setShow(false); setInstallDone(false); }, 1500);
+        setTimeout(() => { setShow(false); setInstallDone(false); restoreDefaultManifest(); }, 1500);
+      } else {
+        restoreDefaultManifest();
       }
       setDeferredPrompt(null);
     } else {
-      // No native prompt — toggle the inline tip
       setShowTip(true);
     }
   };
 
   const handleDismiss = () => {
     setShow(false);
+    restoreDefaultManifest();
     localStorage.setItem(STORAGE_KEY, "true");
   };
 
@@ -85,7 +129,6 @@ export function PWAInstallBanner() {
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border" />
 
             {installDone ? (
-              /* Post-install confirmation */
               <div className="flex flex-col items-center gap-3 py-6">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/20 text-[32px]">✓</div>
                 <p className="text-[16px] font-bold text-text">Installing…</p>
@@ -103,7 +146,6 @@ export function PWAInstallBanner() {
                   </div>
                 </div>
 
-                {/* Benefit bullets */}
                 <div className="space-y-2.5 my-5">
                   <div className="flex items-center gap-2.5">
                     <span className="text-[14px]">🚀</span>
@@ -119,7 +161,6 @@ export function PWAInstallBanner() {
                   </div>
                 </div>
 
-                {/* Inline tip for non-Chrome browsers */}
                 {showTip && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
@@ -139,7 +180,6 @@ export function PWAInstallBanner() {
                           : "Your browser doesn't support auto-install. Use the browser menu to install the app."}
                       </p>
                     </div>
-                    {/* Back button — returns to main popup without dismissing */}
                     <button
                       type="button"
                       onClick={() => setShowTip(false)}
@@ -150,7 +190,6 @@ export function PWAInstallBanner() {
                   </motion.div>
                 )}
 
-                {/* Buttons — hide CTA when tip is visible to avoid confusion */}
                 {!showTip && (
                   <div className="flex gap-3">
                     <button
