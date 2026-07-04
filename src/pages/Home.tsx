@@ -37,7 +37,14 @@ export function Home() {
   const [loading, setLoading] = useState(true);
   const [showKickToast, setShowKickToast] = useState(false);
   const [partnerMessages, setPartnerMessages] = useState<Array<{ message: string; emoji: string; id: string }>>([]);
-  const [dismissedMessages, setDismissedMessages] = useState<Set<string>>(new Set());
+  const [dismissedMessages, setDismissedMessages] = useState<Set<string>>(() => {
+  try {
+    const raw = localStorage.getItem("atnasya-dismissed-messages");
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+  });
   const [petPickerOpen, setPetPickerOpen] = useState(false);
 
   // Check if pregnancy mode — when goal is "track" and onboarding says pregnant=true or cycle phase is unknown with longer gaps
@@ -154,7 +161,16 @@ export function Home() {
                       <p className="text-[12px] font-semibold text-text">{t("partner.message.from")}</p>
                       <p className="text-[13px] text-muted">{msg.message}</p>
                     </div>
-                    <button type="button" onClick={() => setDismissedMessages((prev) => new Set(prev).add(msg.id))}
+                    <button type="button" onClick={() => {
+                      setDismissedMessages((prev) => {
+                        const next = new Set(prev);
+                        next.add(msg.id);
+                        try {
+                          localStorage.setItem("atnasya-dismissed-messages", JSON.stringify([...next]));
+                        } catch {}
+                        return next;
+                      });
+                    }}
                       className="text-[12px] text-muted cursor-pointer hover:text-text flex-shrink-0">✕</button>
                   </div>
                 ))}

@@ -20,10 +20,6 @@ Thumbs.db
 
 # Claude
 .claude/
-<<<<<<< HEAD
-
-=======
->>>>>>> 4381798665f9fca3ff074bc62e90a07ddc688acc
 
 # Logs
 *.log

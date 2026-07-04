@@ -101,8 +101,8 @@ export const useAuthStore = create<AuthState>()(
         set({ theme });
       },
       setPalette: (palette) => set({ palette }),
-      setPet: (pet: PetIcon) => set({ pet }),
-      setFavicon: (favicon: string) => set({ favicon }),
+      setPet: (pet) => set({ pet }),
+      setFavicon: (favicon) => set({ favicon }),
       toggleAnonymousMode: () =>
         set((s) => ({ anonymousMode: !s.anonymousMode })),
       setOnboarding: (partial) =>
@@ -136,7 +136,10 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "atnasya-auth",
-      partialize: (state) => ({
+      partialize: (state): Partial<AuthState> => ({
+        user: state.user,
+        profile: state.profile,
+        loading: state.loading,
         theme: state.theme,
         palette: state.palette,
         pet: state.pet,

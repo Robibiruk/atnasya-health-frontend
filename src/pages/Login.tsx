@@ -1,55 +1,98 @@
-// Login page — Flo-style plum/rose, Google + email, SVG icons.
-import { useState } from "react";
-import { Navigate } from "react-router-dom";
+// Login — simple entry screen. Authenticated users never stay here.
+import { useEffect, useRef, useState } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { auth, googleProvider } from "../lib/firebase";
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  EmailAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  getIdToken,
+  linkWithCredential,
+  signInAnonymously,
 } from "firebase/auth";
-import { auth, googleProvider } from "../lib/firebase";
-import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
-import { useTranslation } from "react-i18next";
+import { registerBackend } from "../lib/auth";
+import { api } from "../lib/api";
+
+function isAuthTriggeredError(err: unknown): boolean {
+  if (!err) return false;
+  if (typeof err === "object") {
+    const anyErr = err as any;
+    if (typeof anyErr?.code === "string" && anyErr.code.startsWith("auth/")) return true;
+    if (typeof anyErr?.name === "string" && anyErr.name.includes("Auth")) return true;
+  }
+  if (typeof err === "string") {
+    return [
+      "auth/",
+      "popup-closed-by-user",
+      "A listener indicated an asynchronous response by returning true",
+      "operation is not allowed",
+    ].some((s) => err.includes(s));
+  }
+  return false;
+}
 
 export function Login() {
-  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
-  const setUser = useAuthStore((s) => s.setUser);
-  const theme = useAuthStore((s) => s.theme);
-  const toggleTheme = useAuthStore((s) => s.toggleTheme);
-  const [name, setName] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const mountedRef = useRef(true);
+
+  const [isReady, setIsReady] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
 
-  // Removed localhost-only restriction so Google sign-in can work on deployed domains.
-  // If Google sign-in fails on production, add the Netlify domain in Firebase Auth authorized domains.
+  useEffect(() => {
+    mountedRef.current = true;
+    const onUnhandled = (e: PromiseRejectionEvent) => {
+      if (isAuthTriggeredError(e.reason)) e.preventDefault();
+    };
+    window.addEventListener("unhandledrejection", onUnhandled);
+    return () => {
+      mountedRef.current = false;
+      window.removeEventListener("unhandledrejection", onUnhandled);
+    };
+  }, []);
 
-  if (user) return <Navigate to="/" replace />;
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((current) => {
+      if (!mountedRef.current) return;
+      if (current) useAuthStore.getState().setUser(current);
+      setIsReady(true);
+    });
+    return unsub;
+  }, []);
 
-  const registerBackend = async (firebaseUser: { uid: string; displayName?: string | null; email?: string | null }, fullName?: string) => {
+  useEffect(() => {
+    const state = location.state as { syncMode?: string } | null;
+    if (state?.syncMode === "email") {
+      setIsSignUp(true);
+    }
+  }, [location.state]);
+
+  const startAnonymous = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
-      const token = await getIdToken(currentUser);
-      const displayName = fullName || firebaseUser.displayName || firebaseUser.email?.split("@")[0];
-      await api.post("/auth/register", { name: displayName || undefined, email: firebaseUser.email, token });
-      const me = await api.get("/auth/me");
-      if (me?.data?.success) {
-        useAuthStore.getState().setProfile(me.data.data);
-        // Sync onboarding state from backend — new users always start fresh
-        const backendUser = me.data.data;
-        useAuthStore.getState().setOnboarding({
-          onboardingCompleted: backendUser.onboardingCompleted ?? false,
-          role: backendUser.role ?? "tracker",
-        });
+      const existing = auth.currentUser;
+      if (existing) {
+        useAuthStore.getState().setUser(existing);
+        await registerBackend(existing);
+      } else {
+        const cred = await signInAnonymously(auth);
+        useAuthStore.getState().setUser(cred.user);
+        await registerBackend(cred.user);
       }
-    } catch {
-      // Registration backend call failed — user is still logged in via Firebase
+    } catch (err) {
+      if (!isAuthTriggeredError(err)) setError(err instanceof Error ? err.message : "Could not continue without signing in");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -57,163 +100,142 @@ export function Login() {
     setLoading(true);
     setError(null);
     try {
-      const cred = await signInWithPopup(auth, googleProvider);
-      setUser(cred.user);
-      await registerBackend(cred.user, cred.user.displayName ?? undefined);
+      const current = auth.currentUser;
+      const result = await signInWithPopup(auth, googleProvider);
+      const fbUser = result.user;
+      if (current?.isAnonymous && fbUser.email) {
+        const cred = GoogleAuthProvider.credentialFromResult(result);
+        if (cred) {
+          try {
+            await linkWithCredential(current, cred);
+          } catch {
+            // ignore link failures, already signed in with google
+          }
+        }
+        try {
+          await current.reload();
+        } catch {
+          // fallback if reload fails
+        }
+        const updated = auth.currentUser ?? current;
+        await registerBackend(updated);
+        useAuthStore.getState().setUser(updated);
+      } else {
+        await registerBackend(fbUser);
+        useAuthStore.getState().setUser(fbUser);
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes("Cross-Origin") || msg.includes("popup") || msg.includes("channel")) {
-        setError("Popup blocked — allow popups for this site and try again");
-      } else if (msg.includes("unauthorized-domain")) {
-        setError("Google sign-in is not allowed from this domain yet. Please use email sign-in or try again later.");
-      } else {
-        setError("Google sign-in failed");
-      }
+      setError(msg.includes("popup-closed-by-user") ? "Sign-in popup closed" : "Could not sign in with Google");
     } finally {
       setLoading(false);
     }
   };
 
   const handleEmail = async () => {
-    if (!email || !password) { setError(t("login.error.incomplete")); return; }
-    if (isSignUp && !name.trim()) { setError(t("login.error.name")); return; }
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      return;
+    }
+    if (isSignUp && !fullName.trim()) {
+      setError("Please add your name");
+      return;
+    }
+    if (isSignUp && password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const cred = isSignUp
-        ? await createUserWithEmailAndPassword(auth, email, password)
-        : await signInWithEmailAndPassword(auth, email, password);
-      setUser(cred.user);
-      await registerBackend(cred.user, name.trim() || undefined);
-    } catch {
-      setError(isSignUp ? t("login.error.email.use") : t("login.error.incorrect"));
+      const current = auth.currentUser;
+      let fbUser;
+      if (current?.isAnonymous) {
+        const credential = EmailAuthProvider.credential(email, password);
+        await linkWithCredential(current, credential);
+        try {
+          await current.reload();
+        } catch {
+          // reload may fail if user state changed
+        }
+        const linked = auth.currentUser ?? current;
+        fbUser = linked;
+      } else {
+        const cred = isSignUp
+          ? await createUserWithEmailAndPassword(auth, email, password)
+          : await signInWithEmailAndPassword(auth, email, password);
+        fbUser = cred.user;
+      }
+      await registerBackend(fbUser);
+      if (isSignUp && fullName.trim()) {
+        try {
+          await api.put("/auth/profile", { name: fullName.trim(), email });
+        } catch {
+          // non-blocking
+        }
+      }
+      useAuthStore.getState().setUser(fbUser);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(isSignUp ? "Could not create account" : `${msg}`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col px-6 py-10 bg-surface">
-      {/* Theme toggle */}
-      <div className="mb-auto flex justify-end">
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label={theme === "dark" ? t("theme.light") : t("theme.dark")}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card cursor-pointer transition-colors duration-150 hover:bg-card-hover"
-        >
-          {theme === "dark" ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-            </svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
-            </svg>
-          )}
-        </button>
-      </div>
-
-      {/* Branding */}
-      <div className="flex flex-col items-center text-center animate-fade-up">
-        {/* Flower SVG icon */}
-        <svg width="56" height="56" viewBox="0 0 56 56" fill="none" className="mb-3">
-          <circle cx="28" cy="28" r="24" fill="var(--color-primary)" opacity="0.12" />
-          <path d="M28 14c0 0 10 6 10 14s-10 14-10 14-10-6-10-14 10-14 10-14z" fill="var(--color-accent)" opacity="0.7" />
-          <path d="M28 20c0 0 6 4 6 8s-6 8-6 8-6-4-6-8 6-8 6-8z" fill="var(--color-primary)" opacity="0.9" />
-          <circle cx="28" cy="28" r="3" fill="white" />
-        </svg>
-        <h1 className="text-[28px] font-bold text-primary" style={{ fontFamily: "DM Serif Display, serif" }}>
-          {t("app.name")}
-        </h1>
-        <p className="mt-2 text-[14px] text-muted max-w-[260px]">
-          {t("login.tagline")}
-        </p>
-      </div>
-
-      {/* Sign-in / Sign-up form */}
-      <div className="mt-10 space-y-3">
-        <button
-          type="button"
-          onClick={handleGoogle}
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-3 rounded-btn bg-card border border-border px-5 py-3.5 text-[15px] font-semibold text-text cursor-pointer transition-colors duration-200 hover:bg-card-hover disabled:opacity-50"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Continue with Google
-        </button>
-
-        <div className="flex items-center gap-2 text-muted">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-[12px]">{t("login.or")}</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-
-        {isSignUp && (
+    <div className="flex min-h-screen items-center justify-center bg-surface">
+      {user ? (
+        <Navigate to="/" replace />
+      ) : (
+        <div className="w-full max-w-sm space-y-4 rounded-card border border-border bg-card p-6 shadow-card">
           <div>
-            <label htmlFor="signup-name" className="sr-only">{t("login.name")}</label>
-            <input
-              id="signup-name"
-              type="text"
-              placeholder={t("login.name")}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary transition-colors duration-150"
-            />
+            <h1 className="text-[18px] font-bold text-text">Welcome</h1>
+            <p className="text-[13px] text-muted">Continue without signing in, or create an account to sync your data.</p>
           </div>
-        )}
-        <div>
-          <label htmlFor="email-input" className="sr-only">{t("login.email")}</label>
-          <input
-            id="email-input"
-            type="email"
-            placeholder={t("login.email")}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="off"
-            className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary transition-colors duration-150"
-          />
+          <div className="space-y-2">
+            <button type="button" onClick={startAnonymous} disabled={loading} className="w-full rounded-btn border border-border bg-card px-5 py-3 text-[15px] font-semibold text-text cursor-pointer hover:bg-card-hover transition-colors disabled:opacity-50">
+              Continue without signing in
+            </button>
+            <button type="button" onClick={handleGoogle} disabled={loading} className="flex w-full items-center justify-center gap-3 rounded-btn bg-card border border-border px-5 py-3 text-[15px] font-semibold text-text cursor-pointer hover:bg-card-hover transition-colors disabled:opacity-50">
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+              </svg>
+              Sign in with Google
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <button type="button" onClick={() => { setIsSignUp(false); setError(null); }} className={`flex-1 rounded-btn px-5 py-3 text-[15px] font-semibold cursor-pointer transition-colors border ${!isSignUp ? 'bg-primary border-primary text-white' : 'bg-card border-border text-text hover:bg-card-hover'} disabled:opacity-50`}>
+                Sign in with email
+              </button>
+              <button type="button" onClick={() => { setIsSignUp(true); setError(null); }} className={`flex-1 rounded-btn px-5 py-3 text-[15px] font-semibold cursor-pointer transition-colors border ${isSignUp ? 'bg-primary border-primary text-white' : 'bg-card border-border text-text hover:bg-card-hover'} disabled:opacity-50`}>
+                Create account
+              </button>
+            </div>
+
+            <div className="space-y-3 pt-2 border-t border-border">
+              <input id="email" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary" />
+              <input id="password" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary" />
+              {isSignUp && (
+                <>
+                  <input id="name" type="text" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary" />
+                  <input id="confirm" type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary" />
+                </>
+              )}
+              <button type="button" onClick={handleEmail} disabled={loading} className="w-full rounded-btn bg-primary text-white px-5 py-3.5 text-[15px] font-semibold cursor-pointer transition-colors hover:bg-primary-light disabled:opacity-50">
+                {loading ? "Please wait..." : (isSignUp ? "Create account" : "Sign in")}
+              </button>
+            </div>
+          </div>
+
+          {error && <p className="text-center text-[13px] text-danger">{error}</p>}
         </div>
-        <div>
-          <label htmlFor="password-input" className="sr-only">{t("login.password")}</label>
-          <input
-            id="password-input"
-            type="password"
-            placeholder={t("login.password")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-            className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary transition-colors duration-150"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={handleEmail}
-          disabled={loading}
-          aria-busy={loading ? "true" : "false"}
-          className="w-full rounded-btn bg-primary text-white px-5 py-3.5 text-[15px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-primary-light disabled:opacity-50"
-        >
-          {loading ? t("login.signing.in") : isSignUp ? t("login.create") : t("login.signin")}
-        </button>
-
-        {error && <p role="alert" aria-live="polite" className="text-center text-[13px] text-danger">{error}</p>}
-
-        <button
-          type="button"
-          onClick={() => setIsSignUp(!isSignUp)}
-          className="w-full text-center text-[13px] text-muted underline cursor-pointer"
-        >
-          {isSignUp ? t("login.have.account") : t("login.new.here")}
-        </button>
-      </div>
-
-      <p className="mt-8 text-center text-[11px] text-subtle">
-        {t("login.privacy")}
-      </p>
+      )}
     </div>
   );
 }

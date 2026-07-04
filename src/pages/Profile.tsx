@@ -9,6 +9,7 @@ import { useCycleStore } from "../store/cycleStore";
 import { useOnboarding } from "../hooks/useOnboarding";
 import { auth } from "../lib/firebase";
 import { api } from "../lib/api";
+import { registerBackend } from "../lib/auth";
 import { useState } from "react";
 import { useEffect } from "react";
 import { QuickStats } from "../components/cycle/QuickStats";
@@ -111,6 +112,16 @@ export function Profile() {
   const [inviteCode, setInviteCode] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showSyncSheet, setShowSyncSheet] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [showEmailSheet, setShowEmailSheet] = useState(false);
+  const [isEmailSignUp, setIsEmailSignUp] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const { t, i18n } = useTranslation();
   // Extended settings
   const [trackingMode, setTrackingMode] = useState<TrackingMode>("cycle");
@@ -161,20 +172,92 @@ export function Profile() {
     }
   };
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    logout();
-    navigate("/login");
-  };
-
   const handleReset = async () => {
     setResetting(true);
     try {
       await resetTracking();
-      navigate("/onboarding");
+      navigate("/onboarding", { replace: true });
     } catch {
       showToast("Could not reset data");
       setResetting(false);
+    }
+  };
+
+  const handleUpgradeAccount = () => {
+    setShowSyncSheet(true);
+  };
+
+  const handleSyncGoogle = async () => {
+    setSyncLoading(true);
+    setSyncError(null);
+    try {
+      const { GoogleAuthProvider, signInWithPopup, linkWithPopup } = await import("firebase/auth");
+      const provider = new GoogleAuthProvider();
+      const current = auth.currentUser;
+      const result = await signInWithPopup(auth, provider);
+      const fbUser = result.user;
+      if (current?.isAnonymous) {
+        const cred = GoogleAuthProvider.credentialFromResult(result);
+        if (cred) await linkWithPopup(current, provider);
+        await registerBackend(current);
+        useAuthStore.getState().setUser(current);
+      } else {
+        await registerBackend(fbUser);
+        useAuthStore.getState().setUser(fbUser);
+      }
+      setShowSyncSheet(false);
+      setShowEmailSheet(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setSyncError(msg.includes("popup-closed-by-user") ? "Sign-in popup closed" : "Could not sign in with Google");
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleEmail = async () => {
+    if (!email.trim() || !password) {
+      setEmailError("Please enter both email and password");
+      return;
+    }
+    if (isEmailSignUp && !fullName.trim()) {
+      setEmailError("Please add your name");
+      return;
+    }
+    if (isEmailSignUp && password !== confirmPassword) {
+      setEmailError("Passwords do not match");
+      return;
+    }
+    setSyncLoading(true);
+    setEmailError(null);
+    try {
+      const current = auth.currentUser;
+      let fbUser;
+      if (current?.isAnonymous) {
+        const credential = (await import("firebase/auth")).EmailAuthProvider.credential(email.trim(), password);
+        await (await import("firebase/auth")).linkWithCredential(current, credential);
+        fbUser = current;
+      } else {
+        const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import("firebase/auth");
+        fbUser = isEmailSignUp
+          ? (await createUserWithEmailAndPassword(auth, email.trim(), password)).user
+          : (await signInWithEmailAndPassword(auth, email.trim(), password)).user;
+      }
+      await registerBackend(fbUser);
+      if (isEmailSignUp && fullName.trim()) {
+        try {
+          await api.put("/auth/profile", { name: fullName.trim(), email: email.trim() });
+        } catch {
+          // non-blocking
+        }
+      }
+      useAuthStore.getState().setUser(fbUser);
+      setShowEmailSheet(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setEmailError(isEmailSignUp ? "Could not create account" : `${msg}`);
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -211,6 +294,50 @@ export function Profile() {
     setShowPartnerConfirm(false);
     showToast(`Disconnected from ${partnerNameBackup ?? "partner"}`);
     await fetchConnection();
+  };
+
+  const [wishlistItems, setWishlistItems] = useState<string[]>([]);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [wishlistInput, setWishlistInput] = useState("");
+
+  useEffect(() => {
+    if (connection?.status !== "active") return;
+    let cancelled = false;
+    setWishlistLoading(true);
+    api.get("/partner/wishlist")
+      .then((res) => {
+        if (!cancelled && res.data?.success) setWishlistItems(res.data.data.items ?? []);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setWishlistLoading(false); });
+    return () => { cancelled = true; };
+  }, [connection?.status, connection?.inviteCode]);
+
+  const addWishlistItem = async () => {
+    const text = wishlistInput.trim();
+    if (!text) return;
+    setWishlistLoading(true);
+    try {
+      const res = await api.post("/partner/wishlist", { item: text });
+      if (res.data?.success) setWishlistItems(res.data.data.items ?? []);
+      setWishlistInput("");
+    } catch {
+      showToast("Could not add wishlist item");
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
+  const removeWishlistItem = async (index: number) => {
+    setWishlistLoading(true);
+    try {
+      const res = await api.delete(`/partner/wishlist/${index}`);
+      if (res.data?.success) setWishlistItems(res.data.data.items ?? []);
+    } catch {
+      showToast("Could not remove item");
+    } finally {
+      setWishlistLoading(false);
+    }
   };
 
   const handleToggleMood = async () => {
@@ -403,16 +530,23 @@ export function Profile() {
           )}
         </Card>
 
-        {/* Partner section (same as before) */}
+        {/* Partner section */}
         <div>
           <div className="flex items-center gap-2 mb-3">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06 1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
             <h3 className="text-[16px] font-bold text-text">{t("partner.title")}</h3>
           </div>
 
-          {(!connection || connection.status === "none") && (
+          {(!user || user.isAnonymous) && (
+            <div className="rounded-card border border-border bg-card p-5 space-y-3">
+              <p className="text-[13px] text-text font-semibold">Sign in to use Partner Connect</p>
+              <p className="text-[12px] text-muted leading-relaxed">Local partner data is hidden for anonymous users. Sign in to sync partner info and connect with your partner.</p>
+              <button type="button" onClick={handleUpgradeAccount} className="w-full rounded-btn bg-primary px-5 py-3 text-[15px] font-semibold text-white cursor-pointer hover:opacity-90">Sign in to sync</button>
+            </div>
+          )}
+          {(user && !user.isAnonymous) && (!connection || connection.status === "none") && (
             <div className="rounded-card bg-card shadow-card p-5 space-y-4">
               <div className="flex justify-center">
                 <div className="relative flex items-center">
@@ -459,7 +593,7 @@ export function Profile() {
             </div>
           )}
 
-          {connection?.status === "pending" && (
+          {(user && !user.isAnonymous) && connection?.status === "pending" && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="rounded-card p-5 space-y-4"
               style={{ background: "var(--color-card)", boxShadow: "var(--shadow-card)", border: "2px solid transparent", backgroundImage: "linear-gradient(var(--color-card), var(--color-card)), linear-gradient(135deg, var(--color-primary), var(--color-accent))", backgroundOrigin: "border-box", backgroundClip: "padding-box, border-box" }}
             >
@@ -486,7 +620,7 @@ export function Profile() {
             </motion.div>
           )}
 
-          {connection?.status === "active" && (
+          {(user && !user.isAnonymous) && connection?.status === "active" && (
             <div className="rounded-card bg-card shadow-card p-5 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-light text-white text-[16px] font-bold">
@@ -540,6 +674,38 @@ export function Profile() {
                     className="w-full rounded-btn border border-border px-4 py-2.5 text-[13px] font-semibold text-muted cursor-pointer hover:bg-card-hover transition-colors">
                     ⏸ {t("partner.sharing.pause")}
                   </button>
+                </div>
+                {/* Shared wishlist */}
+                <div className="border-t border-border pt-3 space-y-2">
+                  <p className="text-[13px] font-semibold text-text">🌸 {(t("Add Wishlist Item") || "Shared wishlist").toString()}</p>
+                  <div className="space-y-2">
+                    {wishlistLoading && <p className="text-[12px] text-muted">Loading...</p>}
+                    {!wishlistLoading && wishlistItems.length === 0 && (
+                      <p className="text-[12px] text-muted">No wishlist items yet.</p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {wishlistItems.map((item, idx) => (
+                        <span key={idx} className="inline-flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1.5 text-[12px] font-medium text-text">
+                          <span className="truncate max-w-[180px]">{item}</span>
+                          <button type="button" onClick={() => removeWishlistItem(idx)} className="text-muted cursor-pointer hover:text-text">✕</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        value={wishlistInput}
+                        onChange={(e) => setWishlistInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") addWishlistItem();
+                        }}
+                        placeholder="Add a wish..."
+                        className="flex-1 rounded-btn border border-border bg-card px-3 py-2 text-[13px] text-text outline-none focus:border-primary"
+                      />
+                      <button type="button" onClick={addWishlistItem} disabled={wishlistLoading} className="rounded-btn bg-primary text-white px-4 py-2 text-[13px] font-semibold cursor-pointer hover:bg-primary-light disabled:opacity-50">
+                        Add
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <button type="button" onClick={() => setShowPartnerConfirm(true)} className="w-full text-center text-[12px] text-danger font-medium cursor-pointer hover:underline">
@@ -780,14 +946,111 @@ export function Profile() {
           {t("profile.reset")}
         </button>
 
-        {/* Sign out */}
-        <button type="button" onClick={handleLogout}
-          className="flex w-full items-center justify-center gap-2 rounded-btn border border-border px-4 py-3 text-[14px] text-muted cursor-pointer hover:bg-card-hover transition-colors">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-          {t("sign.out")}
-        </button>
+        {/* Anonymous sync / sign-in */}
 
-        <p className="pt-4 text-center text-[11px] text-subtle">{t("app.footer")}</p>
+        {(!user || user.isAnonymous) && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+            <Card className="p-4 space-y-2">
+              <p className="text-[14px] font-semibold text-text">Sign in to sync data</p>
+              <p className="text-[12px] text-muted leading-relaxed">Sign in to keep your data synced and access it on another device.</p>
+              <div className="space-y-2">
+                <button type="button" onClick={handleUpgradeAccount} className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[14px] font-semibold text-text cursor-pointer hover:bg-card-hover transition-colors">Sign in / Create account</button>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+
+        {(user && !user.isAnonymous) && (
+          <button type="button" onClick={async () => { try { await auth.signOut(); } finally { logout(); navigate("/login", { replace: true }); }}} className="flex w-full items-center justify-center gap-2 rounded-btn border border-border px-4 py-3 text-[14px] text-muted cursor-pointer hover:bg-card-hover transition-colors">Sign out</button>
+        )}
+
+        {/* Sync bottom sheet */}
+        <AnimatePresence>
+          {showSyncSheet && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm">
+              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 24, stiffness: 260 }} className="w-full rounded-t-[28px] bg-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[16px] font-bold text-text">Sign in to sync</h3>
+                  <button type="button" onClick={() => setShowSyncSheet(false)} className="text-[12px] text-muted font-semibold">Cancel</button>
+                </div>
+                <button type="button" disabled={syncLoading} onClick={handleSyncGoogle} className="flex w-full items-center justify-center gap-3 rounded-btn bg-card border border-border px-5 py-3.5 text-[15px] font-semibold text-text cursor-pointer hover:bg-card-hover disabled:opacity-50">
+                  <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                  </svg>
+                  Continue with Google
+                </button>
+
+                <div className="text-center text-[12px] text-muted">or</div>
+                <button type="button" onClick={() => { setShowEmailSheet(true); }} disabled={syncLoading} className="w-full rounded-btn bg-primary text-white px-5 py-3.5 text-[15px] font-semibold cursor-pointer transition-colors hover:bg-primary-light disabled:opacity-50">
+                  {syncLoading ? "Please wait..." : "Sign in with email"}
+                </button>
+                {syncError && <p className="text-center text-[13px] text-danger">{syncError}</p>}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Email auth bottom sheet */}
+        <AnimatePresence>
+          {showEmailSheet && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm">
+              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 24, stiffness: 260 }} className="w-full rounded-t-[28px] bg-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[16px] font-bold text-text">{isEmailSignUp ? "Create account" : "Sign in"}</h3>
+                  <button type="button" onClick={() => setShowEmailSheet(false)} className="text-[12px] text-muted font-semibold">Cancel</button>
+                </div>
+                <input
+                  id="sheet-email"
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary"
+                />
+                <input
+                  id="sheet-password"
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary"
+                />
+                {isEmailSignUp && (
+                  <>
+                    <input
+                      id="sheet-name"
+                      type="text"
+                      placeholder="Full name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary"
+                    />
+                    <input
+                      id="sheet-confirm"
+                      type="password"
+                      placeholder="Confirm password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full rounded-btn border border-border bg-card px-4 py-3 text-[15px] text-text outline-none focus:border-primary"
+                    />
+                  </>
+                )}
+                <button type="button" onClick={handleEmail} disabled={syncLoading} className="w-full rounded-btn bg-primary text-white px-5 py-3.5 text-[15px] font-semibold cursor-pointer transition-colors hover:bg-primary-light disabled:opacity-50">
+                  {syncLoading ? "Please wait..." : isEmailSignUp ? "Create account" : "Sign in"}
+                </button>
+                <button type="button" onClick={() => { setIsEmailSignUp(!isEmailSignUp); setEmailError(null); }} className="w-full text-center text-[13px] text-muted underline cursor-pointer">
+                  {isEmailSignUp ? "Have an account? Sign in" : "New here? Create an account"}
+                </button>
+                {emailError && <p className="text-center text-[13px] text-danger">{emailError}</p>}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Toast */}
       </div>
 
       {/* Reset confirmation modal */}

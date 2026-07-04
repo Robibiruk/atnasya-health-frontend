@@ -1,6 +1,7 @@
-// PartnerSupport — educational content, phase-specific suggestions, quick messages, shopping list.
+// PartnerSupport — educational content, phase-specific suggestions, quick messages, shopping list,
+// plus bottom partner profile settings: name changer, disconnect, and read-only wishlist.
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuthStore } from "../store/authStore";
 import { usePartner, type PartnerView } from "../hooks/usePartner";
@@ -100,34 +101,128 @@ const QUICK_MESSAGES = [
   { emoji: "🌙", text: "Get some rest" },
 ];
 
+function WishlistReadOnly({ items }: { items?: string[] }) {
+  const [ticked, setTicked] = useState<Record<number, boolean>>({});
+  return (
+    <div className="space-y-1.5">
+      {(!items || items.length === 0) && (
+        <p className="text-[13px] text-muted">No items yet.</p>
+      )}
+      {items?.map((item, i) => (
+        <div key={i} className="flex items-center justify-between rounded-btn bg-card-hover px-3 py-2">
+          <label className="flex items-center gap-2 text-[13px] text-text cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!ticked[i]}
+              onChange={(e) => setTicked((p) => ({ ...p, [i]: e.target.checked }))}
+              className="accent-[var(--color-primary)]"
+            />
+            <span className={ticked[i] ? "line-through text-muted" : undefined}>{item}</span>
+          </label>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DisconnectCard({ connectionName }: { connectionName?: string | null }) {
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const { revoke } = usePartner();
+  const handle = async () => {
+    setBusy(true);
+    try { await revoke(); }
+    finally {
+      window.location.href = "/partner-dashboard";
+    }
+  };
+  return (
+    <div className="rounded-card bg-card shadow-card p-5 space-y-3">
+      <p className="text-[13px] font-semibold uppercase tracking-wide text-muted">Connection</p>
+      {!confirm ? (
+        <div className="space-y-2">
+          <p className="text-[13px] text-text">
+            Disconnect from {connectionName ?? "your tracker"}.
+          </p>
+          <button
+            type="button"
+            onClick={() => setConfirm(true)}
+            className="w-full rounded-btn border border-danger/40 px-4 py-2.5 text-[13px] font-semibold text-danger cursor-pointer hover:bg-danger/5"
+          >
+            Disconnect
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-[13px] text-text">
+            You'll lose access to her cycle info. This also deactivates sharing from her side.
+          </p>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setConfirm(false)} className="flex-1 rounded-btn border border-border px-4 py-2.5 text-[13px] font-semibold text-text cursor-pointer hover:bg-card-hover">
+              Cancel
+            </button>
+            <button type="button" onClick={handle} disabled={busy} className="flex-1 rounded-btn bg-danger px-4 py-2.5 text-[13px] font-semibold text-white cursor-pointer hover:opacity-90 disabled:opacity-60">
+              {busy ? "Removing..." : "Disconnect"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PartnerSupport() {
   const user = useAuthStore((s) => s.user);
   const role = useAuthStore((s) => s.role);
-  const { partnerView, fetchPartnerView } = usePartner();
-  const [data, setData] = useState<PartnerView | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeGuide, setActiveGuide] = useState<string | null>(null);
-  const [quickMsgSent, setQuickMsgSent] = useState<string | null>(null);
-  const [shoppingItems, setShoppingItems] = useState<string[]>([]);
-  const [newItem, setNewItem] = useState("");
+  const { partnerView, fetchPartnerView, loading: partnerLoading } = usePartner();
+  const [wishlistLoaded, setWishlistLoaded] = useState(false);
+  const [ownerWishlist, setOwnerWishlist] = useState<string[]>([]);
+  const [wishlistInput, setWishlistInput] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [shoppingItems, setShoppingItems] = useState<string[]>([]);
+  const [shoppingInput, setShoppingInput] = useState("");
+  const navigate = useNavigate();
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2000); };
 
+  const refreshWishlist = async () => {
+    try {
+      const res = await api.get<{ success: boolean; data: { items?: string[] } }>("/partner/wishlist");
+      setOwnerWishlist(res.data?.data?.items ?? []);
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => {
-    if (!user) return;
-    fetchPartnerView().then((r) => { if (r) setData(r); setLoading(false); });
-  }, [user, fetchPartnerView]);
+    let cancelled = false;
+    setLocalLoading(true);
+    fetchPartnerView()
+      .then(() => refreshWishlist())
+      .finally(() => {
+        if (!cancelled) { setWishlistLoaded(true); setLocalLoading(false); }
+      });
+    return () => { cancelled = true; };
+  }, [fetchPartnerView]);
 
-  if (role === "tracker") return <Navigate to="/" replace />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (role === "tracker") return <div className="pb-24 px-5 pt-5 text-center text-muted">Support content is only available for partner accounts.</div>;
+  if (!user || (user as any).isAnonymous) {
+    return (
+      <div className="pb-24 px-5 pt-5">
+        <div className="rounded-card border border-border bg-card p-5 space-y-2 text-center">
+          <p className="text-[14px] font-semibold text-text">Sign in to access support</p>
+          <p className="text-[12px] text-muted">Sign in to access partner support.</p>
+          <button type="button" onClick={() => navigate("/login", { replace: true })} className="w-full rounded-btn bg-primary text-white px-4 py-3 text-[14px] font-semibold cursor-pointer hover:opacity-90">Sign in</button>
+        </div>
+      </div>
+    );
+  }
 
-  if (loading) return <div className="pb-24 px-5 pt-5"><Spinner /></div>;
-  if (!data) return <div className="pb-24 px-5 pt-5 text-center text-muted">Connect first in the Overview tab.</div>;
+  if (!partnerLoading && localLoading) return <div className="pb-24 px-5 pt-5"><Spinner /></div>;
+  if (!partnerView) return <div className="pb-24 px-5 pt-5 text-center text-muted">Connect first in the Overview tab.</div>;
 
+  const data = partnerView;
   const phase = data.currentPhase || "luteal";
   const guides = PHASE_GUIDES[phase] ?? PHASE_GUIDES.luteal;
 
-  // If pregnancy mode, show pregnancy guides
   const isPregnancy = (data as any).pregnancyWeek != null;
   const trimester = isPregnancy ? ((data as any).trimester ?? "second") : null;
   const pregGuide = trimester ? PREGNANCY_GUIDES[trimester] ?? PREGNANCY_GUIDES.second : null;
@@ -135,17 +230,48 @@ export function PartnerSupport() {
   const sendQuickMessage = async (msg: { emoji: string; text: string }) => {
     try {
       await api.post("/partner/message", { message: msg.text, emoji: msg.emoji });
-      setQuickMsgSent(msg.text);
-      setTimeout(() => setQuickMsgSent(null), 2500);
+      showToast("Sent 💌");
+      setTimeout(() => {}, 1500);
     } catch {
       showToast("Could not send message");
     }
   };
 
-  const addShoppingItem = () => {
-    if (!newItem.trim()) return;
-    setShoppingItems((prev) => [...prev, newItem.trim()]);
-    setNewItem("");
+  const addShoppingItem = async () => {
+    const text = shoppingInput.trim();
+    if (!text) return;
+    setShoppingInput("");
+    setShoppingItems((s) => [...s, text]);
+  };
+
+  const removeShoppingItem = (idx: number) => {
+    setShoppingItems((s) => s.filter((_, i) => i !== idx));
+  };
+
+  const addWishlistItem = async () => {
+    const text = wishlistInput.trim();
+    if (!text) return;
+    setWishlistInput("");
+    try {
+      await api.post("/partner/wishlist", { item: text });
+      await refreshWishlist();
+    } catch {
+      showToast("Could not add wishlist item");
+    }
+  };
+
+  const removeWishlistItem = (idx: number) => {
+    setOwnerWishlist((s) => s.filter((_, i) => i !== idx));
+  };
+
+  const saveName = async () => {
+    const next = prompt("Enter new display name", user?.displayName ?? "");
+    if (!next?.trim()) return;
+    try {
+      await api.put("/auth/settings", { name: next.trim() });
+      showToast("Name updated");
+      setTimeout(() => window.location.reload(), 800);
+    } catch { showToast("Could not save"); }
   };
 
   return (
@@ -204,35 +330,34 @@ export function PartnerSupport() {
               </button>
             ))}
           </div>
-          {quickMsgSent && <p className="text-[12px] font-semibold text-success animate-fade-up">"{quickMsgSent}" sent! 💌</p>}
         </motion.div>
 
-        {/* Shopping / reminder list */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="rounded-card bg-card shadow-card p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[18px]">🛒</span>
-            <p className="text-[14px] font-semibold text-text">Shopping & reminder list</p>
-          </div>
-          {shoppingItems.length > 0 && (
-            <div className="space-y-1.5">
-              {shoppingItems.map((item, i) => (
-                <div key={i} className="flex items-center justify-between rounded-btn bg-card-hover px-3 py-2">
-                  <span className="text-[13px] text-text">{item}</span>
-                  <button type="button" onClick={() => setShoppingItems((prev) => prev.filter((_, j) => j !== i))}
-                    className="text-[12px] text-muted cursor-pointer hover:text-danger">✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <input value={newItem} onChange={(e) => setNewItem(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addShoppingItem(); }}
-              placeholder="Add an item..." className="flex-1 rounded-btn border border-border bg-card px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
-            <button type="button" onClick={addShoppingItem} disabled={!newItem.trim()}
-              className="rounded-btn bg-primary px-4 py-2.5 text-[13px] font-semibold text-white cursor-pointer disabled:opacity-50">Add</button>
-          </div>
-        </motion.div>
+            {/* Shopping / reminder list */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+              className="rounded-card bg-card shadow-card p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[18px]">🛒</span>
+                <p className="text-[14px] font-semibold text-text">Shopping & reminder list</p>
+              </div>
+              <ul id="support-shopping-list" className="space-y-1.5">
+                {shoppingItems.map((item, idx) => (
+                  <li key={idx} className="flex items-center justify-between rounded-btn border border-border bg-card px-3 py-2 text-[13px] text-text">
+                    <span className="truncate">{item}</span>
+                    <button type="button" onClick={() => setShoppingItems((s) => s.filter((_, i) => i !== idx))} className="text-muted cursor-pointer hover:text-text">✕</button>
+                  </li>
+                ))}
+                {shoppingItems.length === 0 && <li className="text-[11px] text-muted">No items yet.</li>}
+              </ul>
+              <div className="flex gap-2">
+                <input id="support-shopping-input"
+                  value={shoppingInput}
+                  onChange={(e) => setShoppingInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addShoppingItem(); } }}
+                  placeholder="Add an item..." className="flex-1 rounded-btn border border-border bg-card px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
+                <button type="button" onClick={addShoppingItem}
+                  className="rounded-btn bg-primary px-4 py-2.5 text-[13px] font-semibold text-white cursor-pointer">Add</button>
+              </div>
+            </motion.div>
 
         {/* Resources */}
         <details className="rounded-card bg-card shadow-card p-4">
@@ -250,6 +375,35 @@ export function PartnerSupport() {
             ))}
           </div>
         </details>
+      </div>
+
+      {/* Bottom: Profile settings for partner */}
+      <div className="px-5 pt-2 space-y-4">
+        {/* Name */}
+        <div className="rounded-card bg-card shadow-card p-5 space-y-3">
+          <p className="text-[13px] font-semibold uppercase tracking-wide text-muted">Profile</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[13px] text-muted">Display name</p>
+              <p className="text-[15px] font-semibold text-text truncate">{user?.displayName ?? "Partner"}</p>
+            </div>
+            <button type="button" onClick={saveName} className="text-[12px] text-primary font-semibold cursor-pointer whitespace-nowrap">
+              Change
+            </button>
+          </div>
+        </div>
+
+        {/* Wishlist view */}
+        <div className="rounded-card bg-card shadow-card p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[18px]">💝</span>
+            <p className="text-[14px] font-semibold text-text">Wishlist</p>
+          </div>
+          <WishlistReadOnly items={ownerWishlist} />
+        </div>
+
+        {/* Disconnect / Deactivate */}
+        <DisconnectCard connectionName={(data as any).ownerName} />
       </div>
 
       {/* Toast */}

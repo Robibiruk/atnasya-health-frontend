@@ -1,10 +1,11 @@
 // PartnerDashboard — partner's Overview tab. Shows phase, mood, tip, pregnancy mode.
-import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuthStore } from "../store/authStore";
 import { usePartner, type PartnerView } from "../hooks/usePartner";
 import { Spinner } from "../components/ui/Spinner";
+import { api } from "../lib/api";
 import { phaseColor } from "../lib/cycleUtils";
 
 const PHASE_DESCRIPTIONS: Record<string, string> = {
@@ -177,11 +178,9 @@ export function PartnerDashboard() {
 }
 
 // ─── Inline code entry ───
-import { useRef } from "react";
-import { api } from "../lib/api";
-
 function PartnerCodeHome() {
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [validating, setValidating] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -221,6 +220,16 @@ function PartnerCodeHome() {
     if (pasted) { const newCode = ["", "", "", "", "", ""]; for (let i = 0; i < pasted.length; i++) newCode[i] = pasted[i]; setCode(newCode); setError(null); inputRefs.current[Math.min(pasted.length, 5)]?.focus(); }
   };
 
+  if (!user) {
+    return (
+      <div className="pb-24 px-5 pt-5">
+        <h1 className="text-[20px] font-bold text-text mb-2">Partner</h1>
+        <p className="text-[14px] text-muted mb-6">Sign in to enter a partner invite code.</p>
+        <button type="button" onClick={() => navigate("/login")} className="w-full rounded-btn bg-primary text-white px-5 py-3.5 text-[15px] font-semibold cursor-pointer">Sign in</button>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-24 px-5 pt-5">
       <h1 className="text-[20px] font-bold text-text mb-2">Hey{user?.displayName ? ` ${user.displayName.split(" ")[0]}` : ""}</h1>
@@ -228,7 +237,7 @@ function PartnerCodeHome() {
       <div className="rounded-card bg-card shadow-card p-6 space-y-5">
         <div>
           <p className="text-[15px] font-semibold text-text mb-1">Enter invite code</p>
-          <p className="text-[13px] text-muted mb-4">Ask your partner to share their 6-character code from their Profile</p>
+          <p className="text-[13px] text-muted mb-4">Ask your partner to open Atnasya, go to Profile, and tap "Connect your partner"</p>
           <div className="flex gap-2.5 justify-center" style={{ animation: error ? "shake 400ms ease-in-out" : undefined }}>
             {code.map((char, i) => (
               <input key={i} ref={(el) => { inputRefs.current[i] = el; }} type="text" maxLength={1} value={char}
