@@ -57,7 +57,7 @@ export function PartnerCalendar() {
   const today = new Date().toISOString().slice(0, 10);
   const monthName = new Date(year, month - 1, 1).toLocaleString("en-US", { month: "long" });
 
-  const prediction = (data as any).prediction ?? null;
+  const prediction = data.prediction ?? null;
 
   const goPrev = () => { const d = new Date(year, month - 2, 1); setYear(d.getFullYear()); setMonth(d.getMonth() + 1); };
   const goNext = () => { const d = new Date(year, month, 1); setYear(d.getFullYear()); setMonth(d.getMonth() + 1); };
@@ -67,16 +67,21 @@ export function PartnerCalendar() {
   for (let d = 1; d <= total; d++) {
     const iso = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     let phase = "unknown";
-    if (prediction) {
-      // Simple phase lookup by date proximity
-      const dateObj = new Date(iso);
-      const pNext = new Date(prediction.nextPeriod);
-      const pFertileStart = new Date(prediction.fertileStart);
-      const pFertileEnd = new Date(prediction.fertileEnd);
-      const pOvu = new Date(prediction.ovulationDay);
-      if (dateObj.toDateString() === pOvu.toDateString()) phase = "ovulation";
-      else if (dateObj >= pFertileStart && dateObj <= pFertileEnd) phase = "fertile";
-      else if (dateObj >= pNext) phase = "menstrual"; // predicted period start
+    if (prediction?.nextPeriod || prediction?.fertileStart || prediction?.fertileEnd || prediction?.ovulationDay) {
+      const dy = new Date(iso).getFullYear();
+      const dm = new Date(iso).getMonth();
+      const dd = new Date(iso).getDate();
+      const pn = new Date(prediction.nextPeriod);
+      const pfs = new Date(prediction.fertileStart);
+      const pfe = new Date(prediction.fertileEnd);
+      const po = new Date(prediction.ovulationDay);
+      const isEqual = (a: Date, b?: Date) => a.getFullYear() === dy && a.getMonth() === dm && a.getDate() === dd;
+      if (isEqual(po)) phase = "ovulation";
+      else if (dy === pn.getFullYear() && dm === pn.getMonth() && dd === pn.getDate()) phase = "menstrual";
+      else if (dy >= pfs.getFullYear() && dm >= pfs.getMonth() && dd >= pfs.getDate() && dy <= pfe.getFullYear() && dm <= pfe.getMonth() && dd <= pfe.getDate()) {
+        // only mark menstrual as fertile if not already a predicted period day
+        if (!(dy === pn.getFullYear() && dm === pn.getMonth() && dd === pn.getDate())) phase = "fertile";
+      }
     }
     days.push({ day: d, iso, phase, isToday: iso === today });
   }

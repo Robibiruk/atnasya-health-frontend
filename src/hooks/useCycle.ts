@@ -1,5 +1,5 @@
 // useCycle hook — fetch/mutate cycle data.
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useCycleStore } from "../store/cycleStore";
 import { useAuthStore } from "../store/authStore";
@@ -123,6 +123,36 @@ export function useCycle() {
     },
     [refresh],
   );
+
+  // Keep phase map fresh across midnight / app backgrounding without full refetch
+  const lastBuiltDateRef = useRef(new Date().toDateString());
+
+  const refreshPhaseMapIfStale = useCallback(() => {
+    const today = new Date().toDateString();
+    if (today !== lastBuiltDateRef.current) {
+      setPhaseMap(new Map());
+      setLoggedDates(new Set());
+      buildPhaseMap();
+      lastBuiltDateRef.current = today;
+    }
+  }, [buildPhaseMap]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshPhaseMapIfStale();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    const interval = setInterval(refreshPhaseMapIfStale, 60 * 1000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      clearInterval(interval);
+    };
+  }, [refreshPhaseMapIfStale]);
 
   return {
     cycles,

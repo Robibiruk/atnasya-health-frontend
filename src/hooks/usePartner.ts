@@ -26,6 +26,13 @@ export interface PartnerView {
   shareLevel: string;
   shareMood: boolean;
   acceptedAt: string | null;
+  prediction?: {
+    nextPeriod: string;
+    fertileStart: string;
+    fertileEnd: string;
+    ovulationDay: string;
+    avgLength: number;
+  } | null;
 }
 
 export function usePartner() {
