@@ -23,8 +23,11 @@
     <!-- Netlify feedback form -->
     <form name="feedback" netlify netlify-honeypot="bot-field" hidden>
       <input type="hidden" name="form-name" value="feedback" />
-      <input name="text" />
-      <input name="category" />
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <textarea name="message"></textarea>
+      <input type="text" name="text" />
+      <input type="text" name="category" />
     </form>
   </body>
 </html>

@@ -149,11 +149,12 @@ export default function App() {
 
 function AppInner() {
   const location = useLocation();
+  const isLogin = location.pathname === "/login";
   return (
     <>
       <AuthInit />
-      <BottomNav />
-      <AIChatFAB />
+      {!isLogin && <BottomNav />}
+      {!isLogin && <AIChatFAB />}
       <AnimatedRoutes />
     </>
   );

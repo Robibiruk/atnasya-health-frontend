@@ -10,8 +10,7 @@ import { useOnboarding } from "../hooks/useOnboarding";
 import { auth } from "../lib/firebase";
 import { api } from "../lib/api";
 import { registerBackend } from "../lib/auth";
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { QuickStats } from "../components/cycle/QuickStats";
 import { usePartner } from "../hooks/usePartner";
 import { InviteCodeDisplay } from "../components/partner/InviteCodeDisplay";
@@ -355,22 +354,40 @@ export function Profile() {
     await updateSettings({ sharePregnancy: !connection.sharePregnancy });
   };
 
+  const feedbackFormRef = useRef<HTMLFormElement>(null);
+
   const handleSubmitFeedback = async () => {
-    if (!feedbackText.trim()) return;
-    setSubmittingFeedback(true);
-    try {
-      await fetch("/", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "text/plain" },
-        body: `form-name=feedback&text=${encodeURIComponent(feedbackText)}&category=app`,
-      });
-      showToast("Thanks for your feedback! ❤️");
-      setFeedbackText("");
-      setShowFeedback(false);
-    } catch {
-      showToast("Could not submit feedback");
+   if (!feedbackText.trim()) return;
+   setSubmittingFeedback(true);
+   try {
+    const u = useAuthStore.getState().user;
+    const name = profile?.name || u?.displayName || "Anonymous";
+    const email = u?.email || "";
+
+    if (import.meta.env.DEV) {
+     showToast("Thanks! Feedback will send when deployed.");
+    } else {
+     const form = feedbackFormRef.current;
+     const nameInput = form?.querySelector('[name="name"]') as HTMLInputElement | null;
+     const emailInput = form?.querySelector('[name="email"]') as HTMLInputElement | null;
+     const msgInput = form?.querySelector('[name="message"]') as HTMLTextAreaElement | null;
+
+     if (nameInput) nameInput.value = name;
+     if (emailInput) emailInput.value = email;
+     if (msgInput) msgInput.value = feedbackText;
+
+     if (form) {
+       form.submit();
+       return;
+     }
+     showToast("Thanks for your feedback! ❤️");
     }
-    setSubmittingFeedback(false);
+    setFeedbackText("");
+    setShowFeedback(false);
+   } catch {
+    showToast("Could not submit feedback");
+   }
+   setSubmittingFeedback(false);
   };
 
   const handleDataExport = async () => {
@@ -909,15 +926,19 @@ export function Profile() {
             </div>
           </button>
           {showFeedback && (
-            <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
-              <textarea value={feedbackText} onChange={(e) => setFeedbackText(e.target.value)} placeholder="Tell us what you think..."
-                rows={3} className="w-full rounded-btn border border-border bg-card px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
-              <button type="button" onClick={handleSubmitFeedback} disabled={!feedbackText.trim() || submittingFeedback}
-                className="w-full rounded-btn bg-primary text-white py-2.5 text-[13px] font-semibold cursor-pointer disabled:opacity-50">
+            <>
+              <form ref={feedbackFormRef} action="/" method="POST" data-netlify="true" data-netlify-honeypot="bot-field" className="hidden">
+                <input type="hidden" name="form-name" value="feedback" />
+              </form>
+              <form onSubmit={(e) => { e.preventDefault(); handleSubmitFeedback(); }} className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+               <input type="hidden" name="form-name" value="feedback" />
+               <textarea value={feedbackText} onChange={(e) => setFeedbackText(e.target.value)} placeholder="Tell us what you think..." rows={3} className="w-full rounded-btn border border-border bg-card px-3 py-2.5 text-[13px] text-text outline-none focus:border-primary" />
+               <button type="submit" disabled={!feedbackText.trim() || submittingFeedback} className="w-full rounded-btn bg-primary text-white py-2.5 text-[13px] font-semibold cursor-pointer disabled:opacity-50">
                 {submittingFeedback ? t("sending") : t("submit")}
-              </button>
-            </div>
-          )}
+               </button>
+              </form>
+            </>
+           )}
 
           {/* Rate app */}
           <button type="button" onClick={() => showToast(t("rate.prompt"))}
