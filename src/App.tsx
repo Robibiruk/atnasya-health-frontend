@@ -9,6 +9,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { auth } from "./lib/firebase";
 import { useAuthStore } from "./store/authStore";
+import { AIChatFAB } from "./components/ai/AIChatFAB";
 import { BottomNav } from "./components/layout/BottomNav";
 import { Login } from "./pages/Login";
 import { CyclePage } from "./pages/Cycle";
@@ -151,7 +152,8 @@ function AppInner() {
   return (
     <>
       <AuthInit />
-      {location.pathname !== "/login" && <BottomNav />}
+      <BottomNav />
+      <AIChatFAB />
       <AnimatedRoutes />
     </>
   );
