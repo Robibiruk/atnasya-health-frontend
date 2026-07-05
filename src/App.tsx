@@ -108,9 +108,8 @@ function AnimatedRoutes() {
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-surface pb-16">
       {children}
-      <BottomNav />
     </div>
   );
 }
@@ -141,6 +140,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthInit />
+      <BottomNav />
       <AnimatedRoutes />
     </BrowserRouter>
   );

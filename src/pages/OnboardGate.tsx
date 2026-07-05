@@ -5,7 +5,6 @@ import { useAuthStore } from "../store/authStore";
 import { useCycleStore } from "../store/cycleStore";
 import { Home } from "../pages/Home";
 import { Spinner } from "../components/ui/Spinner";
-import { BottomNav } from "../components/layout/BottomNav";
 
 export function OnboardGate() {
   const loading = useAuthStore((s) => s.loading);
@@ -35,10 +34,5 @@ export function OnboardGate() {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return (
-    <div className="min-h-screen bg-surface">
-      <Home />
-      <BottomNav />
-    </div>
-  );
+  return <Home />;
 }

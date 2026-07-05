@@ -25,7 +25,7 @@ export function BottomNav() {
   const tabs = isPartner ? partnerTabs(t) : trackerTabs(t);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] md:max-w-[640px] h-16 border-t border-border bg-card" data-nav-palette={palette}>
+    <nav className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[480px] md:max-w-[640px] h-16 border-t border-border bg-[color:var(--color-card)]" data-nav-palette={palette}>
       <div className={`flex h-full items-center ${isPartner ? "divide-x divide-border" : "justify-around"}`}>
         {tabs.map(({ to, label, path, primary }: { to: string; label: string; path: string; primary?: boolean }) => (
           <NavLink
