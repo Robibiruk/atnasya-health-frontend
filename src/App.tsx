@@ -40,13 +40,15 @@ function Protected({ children }: { children: React.ReactNode }) {
 
 function TrackerOnly({ children }: { children: React.ReactNode }) {
   const role = useAuthStore((s) => s.role);
-  if (role === "partner") return <Navigate to="/partner-dashboard" replace />;
+  const loading = useAuthStore((s) => s.loading);
+  if (loading || role === "partner") return <Navigate to="/partner-dashboard" replace />;
   return <>{children}</>;
 }
 
 function PartnerOnly({ children }: { children: React.ReactNode }) {
   const role = useAuthStore((s) => s.role);
-  if (role === "tracker") return <Navigate to="/" replace />;
+  const loading = useAuthStore((s) => s.loading);
+  if (loading || role === "tracker") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -138,11 +140,20 @@ export default function App() {
   }, [favicon]);
 
   return (
-    <BrowserRouter>
-      <AuthInit />
-      <BottomNav />
-      <AnimatedRoutes />
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AppInner />
     </BrowserRouter>
+  );
+}
+
+function AppInner() {
+  const location = useLocation();
+  return (
+    <>
+      <AuthInit />
+      {location.pathname !== "/login" && <BottomNav />}
+      <AnimatedRoutes />
+    </>
   );
 }
 
@@ -154,15 +165,37 @@ function AuthInit() {
     let cancelled = false;
     setLoading(true);
 
-    const unsub = auth.onAuthStateChanged(async (user) => {
-      if (cancelled) return;
-      setUser(user);
-      setLoading(false);
-    });
+    const init = async () => {
+      try {
+        const current = auth.currentUser;
+        if (current) {
+          if (!cancelled) setUser(current);
+        } else {
+          await new Promise<void>((resolve) => {
+            const unsub = auth.onAuthStateChanged((user) => {
+              if (cancelled) {
+                unsub();
+                resolve();
+                return;
+              }
+              setUser(user);
+              setLoading(false);
+              resolve();
+            });
+          });
+          return;
+        }
+      } catch {
+        // ignore restore errors; app falls back to loading state
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    init();
 
     return () => {
       cancelled = true;
-      unsub();
     };
   }, [setUser, setLoading]);
 

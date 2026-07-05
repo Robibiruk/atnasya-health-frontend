@@ -408,9 +408,15 @@ export function PartnerSupport() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 rounded-full bg-primary px-5 py-2.5 text-[13px] font-semibold text-white shadow-card animate-fade-up">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.18 }}
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] rounded-full bg-primary px-5 py-2.5 text-[13px] font-semibold text-white shadow-card"
+        >
           {toast}
-        </div>
+        </motion.div>
       )}
     </div>
   );

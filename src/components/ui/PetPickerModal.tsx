@@ -86,7 +86,7 @@ export function PetPickerModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[110] flex items-end justify-center bg-black/60 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose();
           }}
@@ -96,8 +96,8 @@ export function PetPickerModal({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 60 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-full max-w-sm rounded-t-2xl bg-card p-5 shadow-[0_-8px_40px_rgba(0,0,0,0.3)] border-t border-accent/20"
-            style={{ maxHeight: "80vh", overflowY: "auto" }}
+            className="w-full max-w-sm rounded-t-2xl bg-card p-5 shadow-[0_-8px_40px_rgba(0,0,0,0.35)] border-t border-accent/20 pb-40"
+            style={{ maxHeight: "min(85vh, calc(100dvh - 64px))", overflowY: "auto" }}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border" />
 

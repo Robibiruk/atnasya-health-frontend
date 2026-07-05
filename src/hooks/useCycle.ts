@@ -24,27 +24,38 @@ export function useCycle() {
     useCycleStore();
   const [phaseMap, setPhaseMap] = useState<Map<string, CyclePhase>>(new Map());
   const [loggedDates, setLoggedDates] = useState<Set<string>>(new Set());
-  // Use ref to track cycles for buildPhaseMap without causing re-renders
   const cyclesRef = useRef(cycles);
   cyclesRef.current = cycles;
 
+  const withUser = useCallback(async () => {
+    const user = useAuthStore.getState().user;
+    if (!user) return null;
+    return useAuthStore.getState();
+  }, []);
+
   const fetchCycles = useCallback(async () => {
+    const state = await withUser();
+    if (!state?.user) return null;
     const res = await api.get<ApiResponse<CycleEntry[]>>("/cycles");
     if (res.data.success) setCycles(res.data.data);
     return res.data.success ? res.data.data : null;
-  }, [setCycles]);
+  }, [setCycles, withUser]);
 
   const fetchPrediction = useCallback(async () => {
+    const state = await withUser();
+    if (!state?.user) return null;
     const res =
       await api.get<ApiResponse<PredictionResponse>>("/cycles/predict");
     if (res.data.success) setPrediction(res.data.data);
     return res.data.success ? res.data.data : null;
-  }, [setPrediction]);
+  }, [setPrediction, withUser]);
 
   const fetchStats = useCallback(async () => {
+    const state = await withUser();
+    if (!state?.user) return null;
     const res = await api.get<ApiResponse<CycleStats>>("/cycles/stats");
     return res.data;
-  }, []);
+  }, [withUser]);
 
   // Build the client-side phase map from logged cycles + onboarding fallbacks
   const buildPhaseMap = useCallback((cycleInputs?: CycleEntry[]) => {

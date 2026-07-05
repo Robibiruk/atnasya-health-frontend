@@ -30,12 +30,14 @@ api.interceptors.request.use(
 
 // Response interceptor: redirect to /login on 401 from protected endpoints only.
 // Do NOT redirect on 401 from /auth/register (registration may fail for other reasons).
+// Avoid redirect storms during auth initialization or when already on /login.
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     const status = error.response?.status;
     const url = error.config?.url ?? "";
-    if (status === 401 && !url.includes("/auth/register") && !url.includes("/auth/me")) {
+    const onLoginPage = typeof window !== "undefined" && window.location.pathname === "/login";
+    if (status === 401 && !url.includes("/auth/register") && !url.includes("/auth/me") && !onLoginPage) {
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }

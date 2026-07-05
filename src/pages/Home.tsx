@@ -34,6 +34,7 @@ export function Home() {
   const onboardingCompleted = useAuthStore((s) => s.onboardingCompleted);
   const goal = useAuthStore((s) => s.goal);
   const onboardingData = useAuthStore((s) => s.onboarding);
+  const userLoaded = useAuthStore((s) => s.user);
   const [loading, setLoading] = useState(true);
   const [showKickToast, setShowKickToast] = useState(false);
   const [partnerMessages, setPartnerMessages] = useState<Array<{ message: string; emoji: string; id: string }>>([]);
@@ -58,10 +59,13 @@ export function Home() {
 
   useEffect(() => {
     const load = async () => {
+      if (!userLoaded) return;
       setLoading(true);
-      await Promise.all([fetchPrediction(), fetchCycles(), fetchToday()]);
-      buildPhaseMap();
-      // Fetch unread partner messages
+      await Promise.allSettled([
+        fetchPrediction(),
+        fetchCycles(),
+        fetchToday(),
+      ]);
       try {
         const res = await api.get("/partner/messages");
         if (res.data.success) {
@@ -72,7 +76,7 @@ export function Home() {
       setLoading(false);
     };
     load();
-  }, [fetchPrediction, fetchCycles, fetchToday]);
+  }, [fetchPrediction, fetchCycles, fetchToday, userLoaded]);
 
   const handleLogKick = () => {
     setShowKickToast(true);

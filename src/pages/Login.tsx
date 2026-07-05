@@ -177,7 +177,16 @@ export function Login() {
       useAuthStore.getState().setUser(fbUser);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(isSignUp ? "Could not create account" : `${msg}`);
+      const friendly = isSignUp
+        ? (msg.includes("EMAIL_EXISTS")
+            ? "An account with this email already exists. Try signing in instead."
+            : msg.includes("WEAK_PASSWORD")
+              ? "Password is too weak. Use at least 6 characters."
+              : msg.includes("INVALID_EMAIL")
+                ? "Please enter a valid email."
+                : "Could not create account. Please try again.")
+        : `${msg}`;
+      setError(friendly);
     } finally {
       setLoading(false);
     }

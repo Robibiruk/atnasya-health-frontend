@@ -23,14 +23,14 @@ export function BottomSheet({
       {open && (
         <>
           <motion.div
-            className="fixed inset-0 z-40 bg-black/40"
+            className="fixed inset-0 z-[55] bg-black/40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.div
-            className={`fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[480px] md:max-w-[640px] ${height} overflow-hidden rounded-t-card bg-card shadow-card`}
+            className={`fixed inset-x-0 bottom-0 z-[60] mx-auto max-w-[480px] md:max-w-[640px] ${height} overflow-hidden rounded-t-card bg-card shadow-card`}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -48,7 +48,7 @@ export function BottomSheet({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-full overflow-y-auto p-4 pb-24">{children}</div>
+            <div className="h-full overflow-y-auto p-4 pb-40">{children}</div>
           </motion.div>
         </>
       )}
