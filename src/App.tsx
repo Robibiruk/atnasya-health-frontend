@@ -25,6 +25,7 @@ import { OnboardGate } from "./pages/OnboardGate";
 import { SecretChat } from "./components/secret/SecretChat";
 import { PWAInstallBanner } from "./components/ui/PWAInstallBanner";
 import { Spinner } from "./components/ui/Spinner";
+import { useNotificationScheduler } from "./hooks/useNotificationScheduler";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
@@ -150,6 +151,7 @@ export default function App() {
 function AppInner() {
   const location = useLocation();
   const isLogin = location.pathname === "/login";
+  useNotificationScheduler();
   return (
     <>
       <AuthInit />

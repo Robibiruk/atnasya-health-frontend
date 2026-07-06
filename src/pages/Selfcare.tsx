@@ -52,6 +52,7 @@ import type {
 } from "../types";
 import { playAlarm } from "../utils/audio";
 import { useNotifications } from "../hooks/useNotifications";
+import { useReminderStore } from "../hooks/useReminderStore";
 
 // ========== HELPERS ==========
 function selfcareCardToInsightCard(card: SelfcareCard): InsightCard {
@@ -1235,29 +1236,21 @@ export function Selfcare() {
   const [logValue, setLogValue] = useState<number>(3);
   const [logNotes, setLogNotes] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const [reminders, setReminders] = useState<SelfCareReminder[]>(() => {
-    try {
-      const saved = localStorage.getItem("atnasya-reminders");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.map((r: any) => ({
-          ...r,
-          times: Array.isArray(r.times) && r.times.length > 0 ? r.times : r.time ? [r.time] : ["12:00"],
-          alarmEnabled: typeof r.alarmEnabled === "boolean" ? r.alarmEnabled : false,
-          alarmSound: ["chime", "beep", "soft", "none"].includes(r.alarmSound) ? r.alarmSound : "none",
-        }));
-      }
-    } catch { /* ignore */ }
-    return [
-      { id: "r1", type: "hydration", title: "Drink water", times: ["09:00"], emoji: "💧", days: [0,1,2,3,4,5,6], enabled: true, alarmEnabled: false, alarmSound: "none" },
-      { id: "r2", type: "stretch", title: "Stretch break", times: ["14:00"], emoji: "🤸", days: [0,1,2,3,4,5], enabled: false, alarmEnabled: false, alarmSound: "none" },
-    ];
-  });
+
+  const {
+    reminders,
+    dailyScheduleOn,
+    setDailyScheduleOn,
+    addReminder,
+    toggleReminder,
+    removeReminder,
+    renameReminder,
+    updateReminder,
+  } = useReminderStore();
+  const firedToday = useRef<Set<string>>(new Set());
+  const [activeSoundscape, setActiveSoundscape] = useState<string | null>(null);
   const [videoPhaseFilter, setVideoPhaseFilter] = useState<string>("all");
   const [showAllVideos, setShowAllVideos] = useState(false);
-  const [activeSoundscape, setActiveSoundscape] = useState<string | null>(null);
-  const [dailyScheduleOn, setDailyScheduleOn] = useState(() => localStorage.getItem("atnasya-daily-schedule") !== "off");
-  const firedToday = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     fetchSelfcare();
@@ -1313,25 +1306,25 @@ export function Selfcare() {
       alarmEnabled: false,
       alarmSound: "none",
     };
-    setReminders((prev) => [...prev, newReminder]);
+    addReminder(newReminder);
     showToast("Reminder added");
   };
 
-  const handleUpdateReminder = (id: string, updates: Partial<SelfCareReminder>) => {
-    setReminders((prev) => prev.map((r) => r.id === id ? { ...r, ...updates } : r));
-  };
+  const handleUpdateReminder = useCallback((id: string, updates: Partial<SelfCareReminder>) => {
+    updateReminder(id, updates);
+  }, [updateReminder]);
 
-  const handleToggleReminder = (id: string) => {
-    setReminders((prev) => prev.map((r) => r.id === id ? { ...r, enabled: !r.enabled } : r));
-  };
+  const handleToggleReminder = useCallback((id: string) => {
+    toggleReminder(id);
+  }, [toggleReminder]);
 
-  const handleRemoveReminder = (id: string) => {
-    setReminders((prev) => prev.filter((r) => r.id !== id));
-  };
+  const handleRemoveReminder = useCallback((id: string) => {
+    removeReminder(id);
+  }, [removeReminder]);
 
-  const handleRenameReminder = (id: string, title: string) => {
-    setReminders((prev) => prev.map((r) => r.id === id ? { ...r, title } : r));
-  };
+  const handleRenameReminder = useCallback((id: string, title: string) => {
+    renameReminder(id, title);
+  }, [renameReminder]);
 
   // Daily preset schedule — fires once per day at each slot
   const DAILY_SCHEDULE = [
@@ -1366,67 +1359,8 @@ export function Selfcare() {
     return () => clearInterval(dateInterval);
   }, []);
 
-  // Notifications — centralized state + permission tracking
+  // Notifications are checked globally so reminders work across all tabs/views
   const notif = useNotifications();
-
-  const handleRequestNotification = async () => {
-    await notif.request();
-  };
-
-  const handleTestNotification = async () => {
-    await notif.test("chime");
-  };
-
-  // Notification checker — runs every 30s:
-  //  1. Fires browser notifications for enabled custom reminders at their scheduled time
-  //  2. Fires once-per-day preset schedule notifications
-  useEffect(() => {
-    if (typeof Notification === "undefined") return;
-    if (Notification.permission === "denied") return;
-
-    const check = () => {
-      const now = new Date();
-      const currentMin = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
-      const today = now.getDay();
-
-      // 1. Custom reminders
-      for (const r of reminders) {
-        if (!r.enabled || !r.days.includes(today) || !r.times.includes(currentMin)) continue;
-        if (Notification.permission === "granted") {
-          new Notification("Atnasya Reminder", {
-            body: r.emoji + " " + r.title,
-            icon: "/icons/icon.svg",
-            tag: r.id,
-          });
-        }
-        if (r.alarmEnabled) {
-          try {
-            playAlarm(r.alarmSound);
-          } catch { /* ignore audio errors */ }
-        }
-      }
-
-      // 2. Daily preset schedule
-      if (dailyScheduleOn) {
-        for (const slot of DAILY_SCHEDULE) {
-          if (slot.time !== currentMin) continue;
-          if (firedToday.current.has(slot.id)) continue;
-          firedToday.current.add(slot.id);
-          if (Notification.permission === "granted") {
-            new Notification(slot.title, {
-              body: slot.getBody(),
-              icon: "/icons/icon.svg",
-              tag: "schedule-" + slot.id,
-            });
-          }
-        }
-      }
-    };
-
-    check();
-    const interval = setInterval(check, 30000);
-    return () => clearInterval(interval);
-  }, [reminders, dailyScheduleOn, currentPhase]);
 
   const tip = getPhaseTip(currentPhase);
   const nutrition = getNutritionForPhase(currentPhase || "unknown" as CyclePhase);
@@ -1893,7 +1827,7 @@ export function Selfcare() {
               </div>
               <button
                 type="button"
-                onClick={() => setDailyScheduleOn((p) => !p)}
+                onClick={() => setDailyScheduleOn()}
                 className={`toggle-track ${dailyScheduleOn ? "active" : ""}`}
               ><div className="toggle-thumb" /></button>
             </div>
