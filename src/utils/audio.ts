@@ -66,3 +66,32 @@ export function playAlarm(sound: "chime" | "beep" | "soft" | "none" = "none"): v
     return;
   }
 }
+
+type SoundKind = "chime" | "beep" | "soft" | "none";
+
+let alarmTimer: ReturnType<typeof setInterval> | null = null;
+let activeAlarmSound: SoundKind = "none";
+
+function tickAlarm(sound: SoundKind) {
+  playAlarm(sound);
+}
+
+export function startAlarm(sound: "chime" | "beep" | "soft" | "none" = "chime"): void {
+  if (sound === "none") return;
+  stopAlarm();
+  activeAlarmSound = sound as SoundKind;
+  tickAlarm(sound as SoundKind);
+  alarmTimer = setInterval(() => tickAlarm(sound as SoundKind), 1800);
+}
+
+export function stopAlarm(): void {
+  if (alarmTimer !== null) {
+    clearInterval(alarmTimer);
+    alarmTimer = null;
+  }
+  activeAlarmSound = "none";
+}
+
+export function isAlarmActive(): boolean {
+  return alarmTimer !== null && activeAlarmSound !== "none";
+}

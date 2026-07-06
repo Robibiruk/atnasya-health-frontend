@@ -51,6 +51,7 @@ import type {
   CyclePhase,
 } from "../types";
 import { playAlarm } from "../utils/audio";
+import { useNotifications } from "../hooks/useNotifications";
 
 // ========== HELPERS ==========
 function selfcareCardToInsightCard(card: SelfcareCard): InsightCard {
@@ -1365,28 +1366,15 @@ export function Selfcare() {
     return () => clearInterval(dateInterval);
   }, []);
 
-  // Notification state — do NOT auto-ask on mount. Ask only when the user
-  // explicitly enables a notification-dependent feature or taps Enable.
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unavailable">(
-    typeof Notification !== "undefined" ? Notification.permission : "unavailable"
-  );
-  const [showNotifNudge, setShowNotifNudge] = useState(false);
-  const notifNudgeTimerRef = useRef<number | null>(null);
+  // Notifications — centralized state + permission tracking
+  const notif = useNotifications();
 
-  // Gentle, infrequent nudge to enable notifications after the user has been
-  // in the app for a bit and still hasn't granted permission.
-  useEffect(() => {
-    if (notifPermission !== "default") return;
-    const delay = 30000;
-    const timer = window.setTimeout(() => {
-      if (Notification.permission === "default") setShowNotifNudge(true);
-    }, delay);
-    return () => window.clearTimeout(timer);
-  }, [notifPermission]);
+  const handleRequestNotification = async () => {
+    await notif.request();
+  };
 
-  const hideNotifNudge = () => {
-    setShowNotifNudge(false);
-    if (notifNudgeTimerRef.current) window.clearTimeout(notifNudgeTimerRef.current);
+  const handleTestNotification = async () => {
+    await notif.test("chime");
   };
 
   // Notification checker — runs every 30s:
@@ -1439,12 +1427,6 @@ export function Selfcare() {
     const interval = setInterval(check, 30000);
     return () => clearInterval(interval);
   }, [reminders, dailyScheduleOn, currentPhase]);
-
-  const handleRequestNotification = async () => {
-    if (typeof Notification === "undefined") return;
-    const p = await Notification.requestPermission();
-    setNotifPermission(p);
-  };
 
   const tip = getPhaseTip(currentPhase);
   const nutrition = getNutritionForPhase(currentPhase || "unknown" as CyclePhase);
@@ -1840,50 +1822,62 @@ export function Selfcare() {
                 <div>
                   <p className="text-[12px] font-semibold text-text">Browser notifications</p>
                   <p className="text-[10px] text-muted">
-                    {notifPermission === "granted" && "✅ Enabled — reminders will notify you"}
-                    {notifPermission === "denied" && "❌ Blocked — allow notifications in browser settings"}
-                    {notifPermission === "default" && "⏸️ Not requested yet"}
-                    {notifPermission === "unavailable" && "⚠️ Not supported on this browser"}
+                    {notif.permission === "granted" && "✅ Enabled — reminders will notify you"}
+                    {notif.permission === "denied" && "❌ Blocked — allow notifications in browser settings"}
+                    {notif.permission === "default" && "⏸️ Not requested yet — tap Enable to allow"}
+                    {notif.permission === "unavailable" && "⚠️ Not supported on this browser"}
                   </p>
                 </div>
               </div>
-              {notifPermission === "default" && (
+              {notif.permission === "default" && (
                 <button
                   type="button"
-                  onClick={handleRequestNotification}
+                  onClick={async () => {
+                    await notif.request();
+                  }}
                   className="rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-white cursor-pointer hover:opacity-90"
                 >
                   Enable
                 </button>
               )}
-              {notifPermission === "denied" && (
+              {notif.permission === "denied" && (
                 <span className="text-[10px] text-muted italic">Settings</span>
               )}
+              {notif.permission === "granted" && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await notif.test("chime");
+                  }}
+                  className="rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold text-muted cursor-pointer hover:bg-card-hover"
+                >
+                  Test notify
+                </button>
+              )}
             </div>
-            {showNotifNudge && (
-              <div className="rounded-btn bg-primary/10 border border-accent/20 px-4 py-3 flex items-start gap-3">
-                <span className="text-[16px]">🔔</span>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-text">Turn on notifications?</p>
-                  <p className="text-[11px] text-muted">Get reminders even when Atnasya is in the background.</p>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        hideNotifNudge();
-                        await handleRequestNotification();
-                      }}
-                      className="rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-white cursor-pointer hover:opacity-90"
-                    >Enable</button>
-                    <button
-                      type="button"
-                      onClick={hideNotifNudge}
-                      className="rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold text-muted cursor-pointer hover:bg-card-hover"
-                    >Later</button>
-                  </div>
+            <div className="text-[11px] text-muted">
+              {notif.permission === "granted" && "✅ Enabled — reminders will notify you"}
+              {notif.permission === "denied" && "❌ Blocked — allow notifications in browser settings"}
+              {notif.permission === "default" && "⏸️ Not requested yet — tap Enable to allow"}
+              {notif.permission === "unavailable" && "⚠️ Not supported on this browser"}
+            </div>
+            {/* Alarm test */}
+            <div className="flex items-center justify-between rounded-btn bg-card-hover px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[16px]">🔊</span>
+                <div>
+                  <p className="text-[12px] font-semibold text-text">Test alarm sound</p>
+                  <p className="text-[10px] text-muted">Chimes while the app is running</p>
                 </div>
               </div>
-            )}
+              <button
+                type="button"
+                onClick={() => playAlarm("chime")}
+                className="rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold text-muted cursor-pointer hover:bg-card-hover"
+              >
+                Play
+              </button>
+            </div>
             {/* Daily schedule toggle */}
             <div className="flex items-center justify-between rounded-btn bg-card-hover px-4 py-2.5">
               <div className="flex items-center gap-2">

@@ -752,27 +752,24 @@ export function Profile() {
           {/* Notifications */}
           <button type="button" onClick={async () => {
             if (!("Notification" in window)) { showToast(t("notif.unsupported")); return; }
-            setProfile({
-              ...(profile as any),
-              settings: {
-                ...(profile?.settings ?? {}),
-                notifications: !(profile?.settings?.notifications ?? false),
-              },
-            });
-
             if (Notification.permission === "granted") {
               const next = !(profile?.settings?.notifications ?? false);
               await updateSetting("notifications", next);
-            } else if (Notification.permission === "denied") {
+              return;
+            }
+            if (Notification.permission === "denied") {
               showToast(t("notif.denied"));
+              return;
+            }
+            let perm: NotificationPermission = "denied";
+            try {
+              perm = await Notification.requestPermission();
+            } catch {}
+            if (perm === "granted") {
+              await updateSetting("notifications", true);
+              showToast(t("notif.enabled"));
             } else {
-              const perm = await Notification.requestPermission();
-              if (perm === "granted") {
-                await updateSetting("notifications", true);
-                showToast(t("notif.enabled"));
-              } else {
-                showToast(t("notif.disabled"));
-              }
+              showToast(t("notif.disabled"));
             }
           }}
             className="flex w-full items-center justify-between h-[52px] px-4 cursor-pointer hover:bg-card-hover">

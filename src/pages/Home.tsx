@@ -83,42 +83,70 @@ export function Home() {
     setTimeout(() => setShowKickToast(false), 2000);
   };
 
-  // New user empty state: onboarding done but no cycle logged yet
-  const isNewUser = onboardingCompleted && cycles.length === 0;
+  // Home-tab streak based on days the user actually opened Home
+  const HOME_STREAK_KEY = "atnasya-home-streak-days";
 
-  // Streak from unique open/logged days derived from cycle dates
-  const activeDateKeys = useMemo(() => {
-    const keys = new Set<string>();
-    const addRange = (start?: string | null, end?: string | null) => {
-      if (!start) return;
-      const s = new Date(start);
-      const e = end ? new Date(end) : new Date(s);
-      const d = new Date(s.getFullYear(), s.getMonth(), s.getDate());
-      const stop = new Date(e.getFullYear(), e.getMonth(), e.getDate());
-      while (d.getTime() <= stop.getTime()) {
-        keys.add(d.toISOString().slice(0, 10));
-        d.setDate(d.getDate() + 1);
-      }
-    };
-    cycles.forEach((c) => addRange(c.periodStart, c.periodEnd));
-    return keys;
-  }, [cycles]);
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const streak = useMemo(() => {
-    if (!activeDateKeys.size) return 0;
+  const loadHomeDays = (): string[] => {
+    try {
+      const raw = localStorage.getItem(HOME_STREAK_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveHomeDays = (days: string[]) => {
+    try {
+      localStorage.setItem(HOME_STREAK_KEY, JSON.stringify(days));
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  useEffect(() => {
+    if (!userLoaded) return;
+    const days = loadHomeDays();
+    const todayKey = new Date().toISOString().slice(0, 10);
+    if (!days.includes(todayKey)) {
+      days.push(todayKey);
+      saveHomeDays(days);
+    }
+  }, [userLoaded]);
+
+  const { streak, burntOut } = useMemo(() => {
+    const days = loadHomeDays();
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const uniqueSorted = Array.from(new Set(days)).sort().reverse();
+
+    if (uniqueSorted.length === 0) {
+      return { streak: 0, burntOut: false };
+    }
+
+    // Count consecutive days from today backwards
     let count = 0;
     let d = new Date(todayKey);
-    while (activeDateKeys.has(d.toISOString().slice(0, 10))) {
+    while (uniqueSorted.includes(d.toISOString().slice(0, 10))) {
       count += 1;
       d.setDate(d.getDate() - 1);
     }
-    return count;
-  }, [activeDateKeys]);
+
+    // Burnt out if streak is 0 and last login was more than 2 days ago
+    const lastLoginKey = uniqueSorted[0];
+    const lastLoginDate = new Date(lastLoginKey + "T00:00:00");
+    const daysSinceLastLogin = Math.floor((Date.now() - lastLoginDate.getTime()) / 86400000);
+
+    return {
+      streak: count,
+      burntOut: count === 0 && daysSinceLastLogin >= 2,
+    };
+  }, [loading, userLoaded]);
 
   // Cycle status line
   const cycleStatus = currentPhase && dayOfCycle
     ? t("home.cycle.status", { day: dayOfCycle, phase: currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1) })
     : t("home.cycle.empty");
+
+  const isNewUser = onboardingCompleted && cycles.length === 0;
 
   return (
     <div data-theme={theme} className="pb-24 home-palette-scope" data-home-palette={palette}>
